@@ -80,115 +80,22 @@ class MyApp : public Application
         */
         virtual void Start()
         {
-            // We will be needing to load resources.
-            // All the resources used in this example comes with Urho3D.
-            // If the engine can't find them, check the ResourcePrefixPath (see http://urho3d.github.io/documentation/1.5/_main_loop.html).
             ResourceCache* cache=GetSubsystem<ResourceCache>();
-
-            // Let's use the default style that comes with Urho3D.
             GetSubsystem<UI>()->GetRoot()->SetDefaultStyle(cache->GetResource<XMLFile>("UI/DefaultStyle.xml"));
-            // Let's create some text to display.
-            text_=new Text(context_);
-            // Text will be updated later in the E_UPDATE handler. Keep readin'.
-            text_->SetText("Keys: tab = toggle mouse, AWSD = move camera, Shift = fast mode, Esc = quit.\nWait a bit to see FPS.");
-            // If the engine cannot find the font, it comes with Urho3D.
-            // Set the environment variables URHO3D_HOME, URHO3D_PREFIX_PATH or
-            // change the engine parameter "ResourcePrefixPath" in the Setup method.
-            text_->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"),20);
-            text_->SetColor(Color(.3,0,.3));
-            text_->SetHorizontalAlignment(HA_CENTER);
-            text_->SetVerticalAlignment(VA_TOP);
-            GetSubsystem<UI>()->GetRoot()->AddChild(text_);
-            // Add a button, just as an interactive UI sample.
-            Button* button=new Button(context_);
-            // Note, must be part of the UI system before SetSize calls!
-            GetSubsystem<UI>()->GetRoot()->AddChild(button);
-            button->SetName("Button Quit");
-            button->SetStyle("Button");
-            button->SetSize(32,32);
-            button->SetPosition(16,116);
-            // Subscribe to button release (following a 'press') events
-            SubscribeToEvent(button,E_RELEASED,URHO3D_HANDLER(MyApp,HandleClosePressed));
 
-            // Let's setup a scene to render.
+            GetSubsystem<UI>()->GetRoot()->AddChild(text_);
+
             scene_=new Scene(context_);
-            // Let the scene have an Octree component!
+            XMLFile *sceneFile = cache -> GetResource<XMLFile>("Scenes/mainScene.xml");
+            scene_ -> LoadXML(sceneFile -> GetRoot());
+
             scene_->CreateComponent<Octree>();
-            // Let's add an additional scene component for fun.
             scene_->CreateComponent<DebugRenderer>();
 
-            // Let's put some sky in there.
-            // Again, if the engine can't find these resources you need to check
-            // the "ResourcePrefixPath". These files come with Urho3D.
-            Node* skyNode=scene_->CreateChild("Sky");
-            skyNode->SetScale(500.0f); // The scale actually does not matter
-            Skybox* skybox=skyNode->CreateComponent<Skybox>();
-            skybox->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
-            skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
-
-            // Let's put a box in there.
-            boxNode_=scene_->CreateChild("Box");
-            boxNode_->SetPosition(Vector3(0,2,15));
-            boxNode_->SetScale(Vector3(3,3,3));
-            StaticModel* boxObject=boxNode_->CreateComponent<StaticModel>();
-            boxObject->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
-            boxObject->SetMaterial(cache->GetResource<Material>("Materials/Stone.xml"));
-            boxObject->SetCastShadows(true);
-
-            // Create 400 boxes in a grid.
-            for(int x=-30;x<30;x+=3)
-                for(int z=0;z<60;z+=3)
-                {
-                    Node* boxNode_=scene_->CreateChild("Box");
-                    boxNode_->SetPosition(Vector3(x,-3,z));
-                    boxNode_->SetScale(Vector3(2,2,2));
-                    StaticModel* boxObject=boxNode_->CreateComponent<StaticModel>();
-                    boxObject->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
-                    boxObject->SetMaterial(cache->GetResource<Material>("Materials/Stone.xml"));
-                    boxObject->SetCastShadows(true);
-                }
-
-            // We need a camera from which the viewport can render.
             cameraNode_=scene_->CreateChild("Camera");
             Camera* camera=cameraNode_->CreateComponent<Camera>();
             camera->SetFarClip(2000);
 
-            // Create a red directional light (sun)
-            {
-                Node* lightNode=scene_->CreateChild();
-                lightNode->SetDirection(Vector3::FORWARD);
-                lightNode->Yaw(50);     // horizontal
-                lightNode->Pitch(10);   // vertical
-                Light* light=lightNode->CreateComponent<Light>();
-                light->SetLightType(LIGHT_DIRECTIONAL);
-                light->SetBrightness(1.6);
-                light->SetColor(Color(1.0,.6,0.3,1));
-                light->SetCastShadows(true);
-            }
-            // Create a blue point light
-            {
-                Node* lightNode=scene_->CreateChild("Light");
-                lightNode->SetPosition(Vector3(-10,2,5));
-                Light* light=lightNode->CreateComponent<Light>();
-                light->SetLightType(LIGHT_POINT);
-                light->SetRange(25);
-                light->SetBrightness(1.7);
-                light->SetColor(Color(0.5,.5,1.0,1));
-                light->SetCastShadows(true);
-            }
-            // add a green spot light to the camera node
-            {
-                Node* node_light=cameraNode_->CreateChild();
-                Light* light=node_light->CreateComponent<Light>();
-                node_light->Pitch(15);  // point slightly downwards
-                light->SetLightType(LIGHT_SPOT);
-                light->SetRange(20);
-                light->SetColor(Color(.6,1,.6,1.0));
-                light->SetBrightness(2.8);
-                light->SetFov(25);
-            }
-
-            // Now we setup the viewport. Of course, you can have more than one!
             Renderer* renderer=GetSubsystem<Renderer>();
             SharedPtr<Viewport> viewport(new Viewport(context_,scene_,cameraNode_->GetComponent<Camera>()));
             renderer->SetViewport(0,viewport);
@@ -262,49 +169,9 @@ class MyApp : public Application
             float timeStep=eventData[Update::P_TIMESTEP].GetFloat();
             framecount_++;
             time_+=timeStep;
-            // Movement speed as world units per second
+
             float MOVE_SPEED=10.0f;
-            // Mouse sensitivity as degrees per pixel
             const float MOUSE_SENSITIVITY=0.1f;
-
-            if(time_ >=1)
-            {
-                std::string str;
-                str.append("Keys: tab = toggle mouse, AWSD = move camera, Shift = fast mode, Esc = quit.\n");
-                {
-                    std::ostringstream ss;
-                    ss<<framecount_;
-                    std::string s(ss.str());
-                    str.append(s.substr(0,6));
-                }
-                str.append(" frames in ");
-                {
-                    std::ostringstream ss;
-                    ss<<time_;
-                    std::string s(ss.str());
-                    str.append(s.substr(0,6));
-                }
-                str.append(" seconds = ");
-                {
-                    std::ostringstream ss;
-                    ss<<(float)framecount_/time_;
-                    std::string s(ss.str());
-                    str.append(s.substr(0,6));
-                }
-                str.append(" fps");
-                String s(str.c_str(),str.size());
-                text_->SetText(s);
-                URHO3D_LOGINFO(s);     // this show how to put stuff into the log
-                framecount_=0;
-                time_=0;
-            }
-
-            // Rotate the box thingy.
-            // A much nicer way of doing this would be with a LogicComponent.
-            // With LogicComponents it is easy to control things like movement
-            // and animation from some IDE, console or just in game.
-            // Alas, it is out of the scope for our simple example.
-            boxNode_->Rotate(Quaternion(8*timeStep,16*timeStep,0));
 
             Input* input=GetSubsystem<Input>();
             if(input->GetQualifierDown(1))  // 1 is shift, 2 is ctrl, 4 is alt
@@ -320,14 +187,12 @@ class MyApp : public Application
 
             if(!GetSubsystem<Input>()->IsMouseVisible())
             {
-                // Use this frame's mouse motion to adjust camera node yaw and pitch. Clamp the pitch between -90 and 90 degrees
                 IntVector2 mouseMove=input->GetMouseMove();
                 static float yaw_=0;
                 static float pitch_=0;
                 yaw_+=MOUSE_SENSITIVITY*mouseMove.x_;
                 pitch_+=MOUSE_SENSITIVITY*mouseMove.y_;
                 pitch_=Clamp(pitch_,-90.0f,90.0f);
-                // Reset rotation and set yaw and pitch again
                 cameraNode_->SetDirection(Vector3::FORWARD);
                 cameraNode_->Yaw(yaw_);
                 cameraNode_->Pitch(pitch_);
