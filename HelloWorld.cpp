@@ -86,7 +86,7 @@ class MyApp : public Application
             GetSubsystem<UI>()->GetRoot()->AddChild(text_);
 
             scene_=new Scene(context_);
-            XMLFile *sceneFile = cache -> GetResource<XMLFile>("Scenes/mainScene.xml");
+            XMLFile *sceneFile = cache -> GetResource<XMLFile>("assets/scenes/mainScene.xml");
             scene_ -> LoadXML(sceneFile -> GetRoot());
 
             scene_->CreateComponent<Octree>();
