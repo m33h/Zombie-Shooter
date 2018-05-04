@@ -27,6 +27,14 @@
 #include <Urho3D/Graphics/StaticModel.h>
 #include <Urho3D/Graphics/Material.h>
 #include <Urho3D/Graphics/Skybox.h>
+#include <Urho3D/Graphics/AnimatedModel.h>
+#include <Urho3D/Graphics/Animation.h>
+#include <Urho3D/Graphics/AnimationState.h>
+#include <Urho3D/Physics/PhysicsEvents.h>
+#include <Urho3D/Physics/RigidBody.h>
+#include <Urho3D/Physics/CollisionShape.h>
+#include <Urho3D/Physics/Constraint.h>
+#include "Mover.h"
 
 using namespace Urho3D;
 /**
@@ -53,6 +61,7 @@ class MyApp : public Application
         */
         MyApp(Context * context) : Application(context),framecount_(0),time_(0)
         {
+            context->RegisterFactory<Mover>();
         }
 
         /**
@@ -85,7 +94,7 @@ class MyApp : public Application
 
             GetSubsystem<UI>()->GetRoot()->AddChild(text_);
 
-            scene_=new Scene(context_);
+            scene_= new Scene(context_);
             XMLFile *sceneFile = cache -> GetResource<XMLFile>("assets/scenes/mainScene.xml");
             scene_ -> LoadXML(sceneFile -> GetRoot());
 
@@ -99,6 +108,50 @@ class MyApp : public Application
             Renderer* renderer=GetSubsystem<Renderer>();
             SharedPtr<Viewport> viewport(new Viewport(context_,scene_,cameraNode_->GetComponent<Camera>()));
             renderer->SetViewport(0,viewport);
+
+            // Create animated models
+            const unsigned NUM_MODELS = 50;
+            const float MODEL_MOVE_SPEED = 2.0f;
+            const float MODEL_ROTATE_SPEED = 100.0f;
+            const BoundingBox bounds(Vector3(-20.0f, 0.0f, -20.0f), Vector3(20.0f, 0.0f, 20.0f));
+
+            for (unsigned i = 0; i < NUM_MODELS; ++i) {
+                Node *modelNode = scene_->CreateChild("Jill");
+                modelNode->SetPosition(Vector3(Random(40.0f) - 20.0f, 0.0f, Random(40.0f) - 20.0f));
+                modelNode->SetRotation(Quaternion(0.0f, Random(360.0f), 0.0f));
+
+                // add physics to our model
+
+                RigidBody* body = modelNode->CreateComponent<RigidBody>();
+                body->SetMass(0.0f);
+                body->SetRollingFriction(0.15f);
+
+                CollisionShape* shape = modelNode->CreateComponent<CollisionShape>();
+                shape->SetSphere(1.0f);
+
+                AnimatedModel *modelObject = modelNode->CreateComponent<AnimatedModel>();
+                modelObject->SetModel(cache->GetResource<Model>("Models/Kachujin/Kachujin.mdl"));
+                modelObject->SetMaterial(cache->GetResource<Material>("Models/Kachujin/Materials/Kachujin.xml"));
+                modelObject->SetCastShadows(true);
+
+                // Create an AnimationState for a walk animation. Its time position will need to be manually updated to advance the
+                // animation, The alternative would be to use an AnimationController component which updates the animation automatically,
+                // but we need to update the model's position manually in any case
+                Animation *walkAnimation = cache->GetResource<Animation>("Models/Kachujin/Kachujin_Walk.ani");
+
+                AnimationState *state = modelObject->AddAnimationState(walkAnimation);
+                // The state would fail to create (return null) if the animation was not found
+                if (state) {
+                    // Enable full blending weight and looping
+                    state->SetWeight(1.0f);
+                    state->SetLooped(true);
+                    state->SetTime(Random(walkAnimation->GetLength()));
+                }
+
+                // Create our custom Mover component that will move & animate the model during each frame's update
+                Mover *mover = modelNode->CreateComponent<Mover>();
+                mover->SetParameters(MODEL_MOVE_SPEED, MODEL_ROTATE_SPEED, bounds);
+            }
 
             // We subscribe to the events we'd like to handle.
             // In this example we will be showing what most of them do,
