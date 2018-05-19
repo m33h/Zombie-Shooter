@@ -50,7 +50,6 @@ class MyApp : public Application
         float time_;
         SharedPtr<Text> text_;
         SharedPtr<Scene> scene_;
-        SharedPtr<Node> boxNode_;
         SharedPtr<Node> cameraNode_;
 
         /**
@@ -110,7 +109,7 @@ class MyApp : public Application
             renderer->SetViewport(0,viewport);
 
             // Create animated models
-            const unsigned NUM_MODELS = 50;
+            const unsigned NUM_MODELS = 10;
             const float MODEL_MOVE_SPEED = 2.0f;
             const float MODEL_ROTATE_SPEED = 100.0f;
             const BoundingBox bounds(Vector3(-20.0f, 0.0f, -20.0f), Vector3(20.0f, 0.0f, 20.0f));
@@ -123,11 +122,14 @@ class MyApp : public Application
                 // add physics to our model
 
                 RigidBody* body = modelNode->CreateComponent<RigidBody>();
-                body->SetMass(0.0f);
+                body->SetCollisionLayer(1);
+                body->SetMass(0.01f);
                 body->SetRollingFriction(0.15f);
+                body->SetAngularFactor(Vector3::ZERO);
 
                 CollisionShape* shape = modelNode->CreateComponent<CollisionShape>();
-                shape->SetSphere(1.0f);
+                //shape->SetSphere(1.0f);
+                shape->SetCapsule(0.7f, 1.8f, Vector3(0.0f, 0.9f, 0.0f));
 
                 AnimatedModel *modelObject = modelNode->CreateComponent<AnimatedModel>();
                 modelObject->SetModel(cache->GetResource<Model>("Models/Kachujin/Kachujin.mdl"));
@@ -153,13 +155,6 @@ class MyApp : public Application
                 mover->SetParameters(MODEL_MOVE_SPEED, MODEL_ROTATE_SPEED, bounds);
             }
 
-            // We subscribe to the events we'd like to handle.
-            // In this example we will be showing what most of them do,
-            // but in reality you would only subscribe to the events
-            // you really need to handle.
-            // These are sort of subscribed in the order in which the engine
-            // would send the events. Read each handler method's comment for
-            // details.
             SubscribeToEvent(E_BEGINFRAME,URHO3D_HANDLER(MyApp,HandleBeginFrame));
             SubscribeToEvent(E_KEYDOWN,URHO3D_HANDLER(MyApp,HandleKeyDown));
             SubscribeToEvent(E_UPDATE,URHO3D_HANDLER(MyApp,HandleUpdate));
