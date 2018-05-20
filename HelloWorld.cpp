@@ -210,11 +210,24 @@ public:
     }
 
     void initNavigation() {
+        CrowdManager* crowdManager = scene_->CreateComponent<CrowdManager>();
+        CrowdObstacleAvoidanceParams params = crowdManager->GetObstacleAvoidanceParams(0);
+        // Set the params to "High (66)" setting
+        params.velBias = 0.5f;
+        params.adaptiveDivs = 7;
+        params.adaptiveRings = 3;
+        params.adaptiveDepth = 3;
+        crowdManager->SetObstacleAvoidanceParams(0, params);
+
         NavigationMesh *navMesh = scene_->GetComponent<NavigationMesh>();
         navMesh->SetDrawNavAreas(true);
         navMesh->SetDrawOffMeshConnections(true);
+        navMesh->SetAgentHeight(10.0f);
+        // Set nav mesh cell height to minimum (allows agents to be grounded)
+        navMesh->SetCellHeight(0.05f);
+        navMesh->SetPadding(Vector3(0.0f, 10.0f, 0.0f));
         navMesh->Build();
-        CreateBoxOffMeshConnections(navMesh);
+        //CreateBoxOffMeshConnections(navMesh);
 
         UpdateEnemyDestination();
     }
