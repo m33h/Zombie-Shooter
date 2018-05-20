@@ -6,14 +6,16 @@
 	<attribute name="Snap Threshold" value="5" />
 	<attribute name="Elapsed Time" value="365.911" />
 	<attribute name="Next Replicated Node ID" value="3" />
-	<attribute name="Next Replicated Component ID" value="4" />
-	<attribute name="Next Local Node ID" value="16777235" />
-	<attribute name="Next Local Component ID" value="16777328" />
+	<attribute name="Next Replicated Component ID" value="6" />
+	<attribute name="Next Local Node ID" value="16777236" />
+	<attribute name="Next Local Component ID" value="16777340" />
 	<attribute name="Variables" />
 	<attribute name="Variable Names" value="" />
 	<component type="Octree" id="1" />
 	<component type="DebugRenderer" id="2" />
 	<component type="PhysicsWorld" id="3" />
+	<component type="Navigable" id="4" />
+	<component type="NavigationMesh" id="5" />
 	<node id="16777218">
 		<attribute name="Is Enabled" value="true" />
 		<attribute name="Name" value="" />
@@ -43,7 +45,6 @@
 		</component>
 		<component type="RigidBody" id="16777302">
 			<attribute name="Physics Position" value="-0.119227 0 -1.56046" />
-			<attribute name="Mass" value="0" />
 		</component>
 		<component type="CollisionShape" id="16777303" />
 	</node>
