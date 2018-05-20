@@ -36,15 +36,19 @@
 #include <Urho3D/Physics/Constraint.h>
 #include <Urho3D/Navigation/Navigable.h>
 #include <Urho3D/Navigation/NavigationMesh.h>
+#include <Urho3D/Navigation/CrowdAgent.h>
 #include "Mover.h"
+#include <Urho3D/Graphics/AnimatedModel.h>
+#include <Urho3D/Graphics/AnimationController.h>
+#include <Urho3D/Navigation/NavigationEvents.h>
+#include <Urho3D/Navigation/Obstacle.h>
+#include <Urho3D/Navigation/OffMeshConnection.h>
 
 using namespace Urho3D;
 
 class MyApp : public Application {
     /// Last calculated path.
     PODVector<Vector3> currentPath_;
-    /// Path end position.
-    Vector3 endPos_;
 
 public:
     int framecount_;
@@ -91,23 +95,25 @@ public:
     }
 
     void subscribeToEvents() {
-        SubscribeToEvent(E_BEGINFRAME, URHO3D_HANDLER(MyApp, HandleBeginFrame));
         SubscribeToEvent(E_KEYDOWN, URHO3D_HANDLER(MyApp, HandleKeyDown));
         SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(MyApp, HandleUpdate));
         SubscribeToEvent(E_POSTRENDERUPDATE, URHO3D_HANDLER(MyApp, HandlePostRenderUpdate));
+        SubscribeToEvent(E_CROWD_AGENT_REPOSITION, URHO3D_HANDLER(MyApp, HandleCrowdAgentReposition));
     }
 
     void addEnemies() {
         ResourceCache *cache = GetSubsystem<ResourceCache>();
 
         // Create animated models
-        const unsigned NUM_MODELS = 1;
+        const unsigned NUM_MODELS = 40;
         const float MODEL_MOVE_SPEED = 2.0f;
         const float MODEL_ROTATE_SPEED = 100.0f;
         const BoundingBox bounds(Vector3(-20.0f, 0.0f, -20.0f), Vector3(20.0f, 0.0f, 20.0f));
 
+        Node *jacks = scene_->CreateChild("Jacks");
+
         for (unsigned i = 0; i < NUM_MODELS; ++i) {
-            Node *modelNode = scene_->CreateChild("Jill");
+            Node *modelNode = jacks->CreateChild("Jill");
             modelNode->SetPosition(Vector3(Random(40.0f) - 20.0f, 0.0f, Random(40.0f) - 20.0f));
             modelNode->SetRotation(Quaternion(0.0f, Random(360.0f), 0.0f));
 
@@ -118,7 +124,6 @@ public:
             body->SetAngularFactor(Vector3::ZERO);
 
             CollisionShape *shape = modelNode->CreateComponent<CollisionShape>();
-            //shape->SetSphere(1.0f);
             shape->SetCapsule(0.7f, 1.8f, Vector3(0.0f, 0.9f, 0.0f));
 
             AnimatedModel *modelObject = modelNode->CreateComponent<AnimatedModel>();
@@ -126,23 +131,45 @@ public:
             modelObject->SetMaterial(cache->GetResource<Material>("Models/Kachujin/Materials/Kachujin.xml"));
             modelObject->SetCastShadows(true);
 
-            // Create an AnimationState for a walk animation. Its time position will need to be manually updated to advance the
-            // animation, The alternative would be to use an AnimationController component which updates the animation automatically,
-            // but we need to update the model's position manually in any case
-            Animation *walkAnimation = cache->GetResource<Animation>("Models/Kachujin/Kachujin_Walk.ani");
+            CrowdAgent* agent = modelNode->CreateComponent<CrowdAgent>();
+            agent->SetHeight(2.0f);
+            agent->SetMaxSpeed(3.0f);
+            agent->SetMaxAccel(5.0f);
 
-            AnimationState *state = modelObject->AddAnimationState(walkAnimation);
-            // The state would fail to create (return null) if the animation was not found
-            if (state) {
-                // Enable full blending weight and looping
-                state->SetWeight(1.0f);
-                state->SetLooped(true);
-                state->SetTime(Random(walkAnimation->GetLength()));
+            modelNode->CreateComponent<AnimationController>();
+        }
+    }
+
+    void HandleCrowdAgentReposition(StringHash eventType, VariantMap& eventData)
+    {
+        static const char* WALKING_ANI = "Models/Kachujin/Kachujin_Walk.ani";
+
+        using namespace CrowdAgentReposition;
+
+        Node* node = static_cast<Node*>(eventData[P_NODE].GetPtr());
+        CrowdAgent* agent = static_cast<CrowdAgent*>(eventData[P_CROWD_AGENT].GetPtr());
+        Vector3 velocity = eventData[P_VELOCITY].GetVector3();
+        float timeStep = eventData[P_TIMESTEP].GetFloat();
+
+        // Only Jack agent has animation controller
+        AnimationController* animCtrl = node->GetComponent<AnimationController>();
+        if (animCtrl)
+        {
+            float speed = velocity.Length();
+            if (animCtrl->IsPlaying(WALKING_ANI))
+            {
+                float speedRatio = speed / agent->GetMaxSpeed();
+                // Face the direction of its velocity but moderate the turning speed based on the speed ratio and timeStep
+                node->SetRotation(node->GetRotation().Slerp(Quaternion(Vector3::FORWARD, velocity), 10.0f * timeStep * speedRatio));
+                // Throttle the animation speed based on agent speed ratio (ratio = 1 is full throttle)
+                animCtrl->SetSpeed(WALKING_ANI, speedRatio * 1.5f);
             }
+            else
+                animCtrl->Play(WALKING_ANI, 0, true, 0.1f);
 
-            // Create our custom Mover component that will move & animate the model during each frame's update
-            Mover *mover = modelNode->CreateComponent<Mover>();
-            mover->SetParameters(MODEL_MOVE_SPEED, MODEL_ROTATE_SPEED, bounds);
+            // If speed is too low then stop the animation
+            if (speed < agent->GetRadius())
+                animCtrl->Stop(WALKING_ANI, 0.5f);
         }
     }
 
@@ -151,15 +178,14 @@ public:
 
         Vector3 hitPos = cameraNode_->GetPosition();
         hitPos.y_ = 0;
-        Drawable *hitDrawable;
 
         NavigationMesh *navMesh = scene_->GetComponent<NavigationMesh>();
 
-        Vector3 pathPos = navMesh->FindNearestPoint(hitPos);
-        Node *jackNode_ = scene_->GetChild("Jill");
+        Vector3 pathPos = navMesh->FindNearestPoint(hitPos, Vector3(1.0f, 1.0f, 1.0f));
 
-        endPos_ = pathPos;
-        navMesh->FindPath(currentPath_, jackNode_->GetPosition(), endPos_);
+        Node* jackGroup = scene_->GetChild("Jacks");
+
+        scene_->GetComponent<CrowdManager>()->SetCrowdTarget(pathPos, jackGroup);
     }
 
     void FollowPath(float timeStep) {
@@ -183,50 +209,37 @@ public:
         }
     }
 
-    bool Raycast(float maxDistance, Vector3 &hitPos, Drawable *&hitDrawable) {
-        hitDrawable = 0;
-
-        UI *ui = GetSubsystem<UI>();
-        IntVector2 pos = IntVector2(-36, 0);
-        // Check the cursor is visible and there is no UI element in front of the cursor
-
-        if (NULL != ui->GetCursor() && !ui->GetCursor()->IsVisible() || ui->GetElementAt(pos, true)) {
-            return false;
-        }
-
-        Graphics *graphics = GetSubsystem<Graphics>();
-        Camera *camera = cameraNode_->GetComponent<Camera>();
-        Ray cameraRay = camera->GetScreenRay((float) pos.x_ / graphics->GetWidth(),
-                                             (float) pos.y_ / graphics->GetHeight());
-        // Pick only geometry objects, not eg. zones or lights, only get the first (closest) hit
-        PODVector<RayQueryResult> results;
-        RayOctreeQuery query(results, cameraRay, RAY_TRIANGLE, maxDistance, DRAWABLE_GEOMETRY);
-
-        scene_->GetComponent<Octree>()->RaycastSingle(query);
-        if (results.Size()) {
-            RayQueryResult &result = results[0];
-            hitPos = result.position_;
-            hitDrawable = result.drawable_;
-            return true;
-        }
-
-        hitPos = Vector3(30, 0, 20);
-
-        return true;
-    }
-
     void initNavigation() {
         NavigationMesh *navMesh = scene_->GetComponent<NavigationMesh>();
+        navMesh->SetDrawNavAreas(true);
+        navMesh->SetDrawOffMeshConnections(true);
         navMesh->Build();
+        CreateBoxOffMeshConnections(navMesh);
+
         UpdateEnemyDestination();
     }
 
-    /**
-    * Every frame's life must begin somewhere. Here it is.
-    */
-    void HandleBeginFrame(StringHash eventType, VariantMap &eventData) {
-        // We really don't have anything useful to do here for this example.
-        // Probably shouldn't be subscribing to events we don't care about.
+    void CreateBoxOffMeshConnections(NavigationMesh* navMesh)
+    {
+        Node* boxesGroup = scene_->GetChild("Boxes");
+
+        const Vector<SharedPtr<Node> >& boxes = boxesGroup->GetChildren();
+        for (unsigned i=0; i < boxes.Size(); ++i)
+        {
+            Node* box = boxes[i];
+            Vector3 boxPos = box->GetPosition();
+            float boxHalfSize = box->GetScale().x_ / 2;
+
+            // Create 2 empty nodes for the start & end points of the connection. Note that order matters only when using one-way/unidirectional connection.
+            Node* connectionStart = box->CreateChild("ConnectionStart");
+            connectionStart->SetWorldPosition(navMesh->FindNearestPoint(boxPos + Vector3(boxHalfSize, -boxHalfSize, 0))); // Base of box
+            Node* connectionEnd = connectionStart->CreateChild("ConnectionEnd");
+            connectionEnd->SetWorldPosition(navMesh->FindNearestPoint(boxPos + Vector3(boxHalfSize, boxHalfSize, 0))); // Top of box
+
+            // Create the OffMeshConnection component to one node and link the other node
+            OffMeshConnection* connection = connectionStart->CreateComponent<OffMeshConnection>();
+            connection->SetEndPoint(connectionEnd);
+        }
     }
 
     void HandleKeyDown(StringHash eventType, VariantMap &eventData) {
@@ -263,12 +276,9 @@ public:
             cameraNode_->Translate(Vector3(1, 0, 0) * MOVE_SPEED * timeStep);
         }
 
-        if((int)time_ % 5 == 0 ) {
+        if((int)time_ % 3 == 0 ) {
             UpdateEnemyDestination();
         }
-
-/*        if (input->GetMouseButtonPress(MOUSEB_LEFT))
-            UpdateEnemyDestination();*/
 
         if (!GetSubsystem<Input>()->IsMouseVisible()) {
             IntVector2 mouseMove = input->GetMouseMove();
@@ -281,37 +291,13 @@ public:
             cameraNode_->Yaw(yaw_);
             cameraNode_->Pitch(pitch_);
         }
-
-        FollowPath(timeStep);
     }
 
-    /**
-    * After everything is rendered, there might still be things you wish
-    * to add to the rendering. At this point you cannot modify the scene,
-    * only post rendering is allowed. Good for adding things like debug
-    * artifacts on screen or brush up lighting, etc.
-    */
     void HandlePostRenderUpdate(StringHash eventType, VariantMap &eventData) {
-      /*  scene_->GetComponent<NavigationMesh>()->DrawDebugGeometry(true);
-
-        if (currentPath_.Size()) {
-
-            Node *jackNode_ = scene_->GetChild("Jill");
-
-            // Visualize the current calculated path
-            DebugRenderer *debug = scene_->GetComponent<DebugRenderer>();
-            debug->AddBoundingBox(BoundingBox(endPos_ - Vector3(0.1f, 0.1f, 0.1f), endPos_ + Vector3(0.1f, 0.1f, 0.1f)),
-                                  Color(1.0f, 1.0f, 1.0f));
-
-            // Draw the path with a small upward bias so that it does not clip into the surfaces
-            Vector3 bias(0.0f, 0.05f, 0.0f);
-            debug->AddLine(jackNode_->GetPosition() + bias, currentPath_[0] + bias, Color(1.0f, 1.0f, 1.0f));
-
-            if (currentPath_.Size() > 1) {
-                for (unsigned i = 0; i < currentPath_.Size() - 1; ++i)
-                    debug->AddLine(currentPath_[i] + bias, currentPath_[i + 1] + bias, Color(1.0f, 1.0f, 1.0f));
-            }
-        }*/
+        // Visualize navigation mesh, obstacles and off-mesh connections
+        scene_->GetComponent<NavigationMesh>()->DrawDebugGeometry(true);
+        // Visualize agents' path and position to reach
+        scene_->GetComponent<CrowdManager>()->DrawDebugGeometry(true);
     }
 };
 
