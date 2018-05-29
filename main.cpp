@@ -37,7 +37,6 @@
 #include <Urho3D/Navigation/Navigable.h>
 #include <Urho3D/Navigation/NavigationMesh.h>
 #include <Urho3D/Navigation/CrowdAgent.h>
-#include "Mover.h"
 #include <Urho3D/Graphics/AnimatedModel.h>
 #include <Urho3D/Graphics/AnimationController.h>
 #include <Urho3D/Navigation/NavigationEvents.h>
@@ -57,9 +56,7 @@ public:
     SharedPtr<Scene> scene_;
     SharedPtr<Node> cameraNode_;
 
-    MyApp(Context *context) : Application(context), framecount_(0), time_(0) {
-        context->RegisterFactory<Mover>();
-    }
+    MyApp(Context *context) : Application(context), framecount_(0), time_(0) {}
 
     virtual void Setup() {
         engineParameters_["FullScreen"] = false;
@@ -82,6 +79,7 @@ public:
         scene_->CreateComponent<DebugRenderer>();
 
         cameraNode_ = scene_->CreateChild("Camera");
+        cameraNode_->SetPosition(Vector3(0,2,0));
         Camera *camera = cameraNode_->CreateComponent<Camera>();
         camera->SetFarClip(2000);
 
