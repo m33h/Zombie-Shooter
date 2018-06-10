@@ -37,16 +37,18 @@
 #include <Urho3D/Navigation/Navigable.h>
 #include <Urho3D/Navigation/NavigationMesh.h>
 #include <Urho3D/Navigation/CrowdAgent.h>
-#include <Urho3D/Graphics/AnimatedModel.h>
 #include <Urho3D/Graphics/AnimationController.h>
 #include <Urho3D/Navigation/NavigationEvents.h>
 #include <Urho3D/Navigation/Obstacle.h>
 #include <Urho3D/Navigation/OffMeshConnection.h>
 #include "Urho3D/IO/Log.h"
 
+#include <stdio.h>
 #include "Player.h"
 
 using namespace Urho3D;
+
+#define NUM_MODELS 50
 
 class Main : public Application
 {
@@ -56,12 +58,16 @@ class Main : public Application
     public:
         int framecount_;
         float time_;
+//        GameObject gameObject;
         SharedPtr<Text> text_;
         SharedPtr<Scene> scene_;
         SharedPtr<Node> boxNode_;
         SharedPtr<Node> cameraNode_;
+        SharedPtr<Node> playerNode;
+        Context* context;
 
-        Main(Context * context) : Application(context), framecount_(0), time_(0) {
+        Main(Context * context) : Application(context), framecount_(0), time_(0), context(context) {
+//            gameObject = GameObject(context);
             Player::RegisterObject(context);
         }
 
@@ -96,8 +102,7 @@ class Main : public Application
             SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
             renderer->SetViewport(0, viewport);
 
-            Node* playerNode = scene_ -> CreateChild("Player");
-
+            addPlayer();
             addEnemies();
             initNavigation();
             subscribeToEvents();
@@ -108,13 +113,33 @@ class Main : public Application
             SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(Main, HandleUpdate));
             SubscribeToEvent(E_POSTRENDERUPDATE, URHO3D_HANDLER(Main, HandlePostRenderUpdate));
             SubscribeToEvent(E_CROWD_AGENT_REPOSITION, URHO3D_HANDLER(Main, HandleCrowdAgentReposition));
+//            SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(Player, HandleCollision));
+            SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(Main, HandlePlayerCollision));
+        }
+
+        void addPlayer() {
+            ResourceCache *cache = GetSubsystem<ResourceCache>();
+
+            playerNode = cameraNode_ -> CreateChild("Player");
+            RigidBody *body = playerNode->CreateComponent<RigidBody>();
+            body->SetCollisionLayer(1);
+            body->SetMass(0.01f);
+            body->SetRollingFriction(0.15f);
+            body->SetAngularFactor(Vector3::ZERO);
+
+            CollisionShape *shape = playerNode->CreateComponent<CollisionShape>();
+            shape->SetCapsule(0.7f, 1.8f, Vector3(0.0f, 0.9f, 0.0f));
+            AnimatedModel *modelObject = playerNode->CreateComponent<AnimatedModel>();
+            modelObject->SetModel(cache->GetResource<Model>("Models/Kachujin/Kachujin.mdl"));
+            modelObject->SetMaterial(cache->GetResource<Material>("Models/Kachujin/Materials/Kachujin.xml"));
+            modelObject->SetCastShadows(true);
+
+            playerNode->CreateComponent<AnimationController>();
         }
 
         void addEnemies() {
             ResourceCache *cache = GetSubsystem<ResourceCache>();
 
-            // Create animated models
-            const unsigned NUM_MODELS = 40;
             const float MODEL_MOVE_SPEED = 2.0f;
             const float MODEL_ROTATE_SPEED = 100.0f;
             const BoundingBox bounds(Vector3(-20.0f, 0.0f, -20.0f), Vector3(20.0f, 0.0f, 20.0f));
@@ -147,6 +172,10 @@ class Main : public Application
 
                 modelNode->CreateComponent<AnimationController>();
             }
+        }
+
+        void HandlePlayerCollision(StringHash eventType, VariantMap& eventData) {
+            URHO3D_LOGINFO("handl collidion");
         }
 
         void HandleCrowdAgentReposition(StringHash eventType, VariantMap& eventData) {
@@ -291,12 +320,15 @@ class Main : public Application
             Input *input = GetSubsystem<Input>();
             if (input->GetQualifierDown(1))  // 1 is shift, 2 is ctrl, 4 is alt
                 MOVE_SPEED *= 10;
-            if (input->GetKeyDown('W'))
+            if (input->GetKeyDown('W')){
                 cameraNode_->Translate(Vector3(0, 0, 1) * MOVE_SPEED * timeStep);
-            if (input->GetKeyDown('S'))
+            }
+            if (input->GetKeyDown('S')){
                 cameraNode_->Translate(Vector3(0, 0, -1) * MOVE_SPEED * timeStep);
-            if (input->GetKeyDown('A'))
+            }
+            if (input->GetKeyDown('A')) {
                 cameraNode_->Translate(Vector3(-1, 0, 0) * MOVE_SPEED * timeStep);
+            }
             if (input->GetKeyDown('D')) {
                 cameraNode_->Translate(Vector3(1, 0, 0) * MOVE_SPEED * timeStep);
             }
@@ -310,11 +342,13 @@ class Main : public Application
                 static float yaw_ = 0;
                 static float pitch_ = 0;
                 yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
-                pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
                 pitch_ = Clamp(pitch_, -90.0f, 90.0f);
                 cameraNode_->SetDirection(Vector3::FORWARD);
+                playerNode->SetDirection(Vector3::FORWARD);
                 cameraNode_->Yaw(yaw_);
+                playerNode->Yaw(yaw_);
                 cameraNode_->Pitch(pitch_);
+                playerNode->Pitch(pitch_);
             }
         }
 
@@ -322,24 +356,6 @@ class Main : public Application
         {
             engine_->Exit();
         }
-
-        void HandleBeginFrame(StringHash eventType,VariantMap& eventData)
-        {
-            // We really don't have anything useful to do here for this example.
-            // Probably shouldn't be subscribing to events we don't care about.
-        }
-
-        void HandleRenderUpdate(StringHash eventType, VariantMap & eventData)
-        {
-            // We really don't have anything useful to do here for this example.
-            // Probably shouldn't be subscribing to events we don't care about.
-        }
-
-        void HandlePostUpdate(StringHash eventType,VariantMap& eventData){
-            // We really don't have anything useful to do here for this example.
-            // Probably shouldn't be subscribing to events we don't care about.
-        }
-
         void HandlePostRenderUpdate(StringHash eventType, VariantMap & eventData){
             // Visualize navigation mesh, obstacles and off-mesh connections
             scene_->GetComponent<NavigationMesh>()->DrawDebugGeometry(true);
@@ -347,11 +363,12 @@ class Main : public Application
             scene_->GetComponent<CrowdManager>()->DrawDebugGeometry(true);
         }
 
-        void HandleEndFrame(StringHash eventType,VariantMap& eventData)
-        {
-            // We really don't have anything useful to do here for this example.
-            // Probably shouldn't be subscribing to events we don't care about.
-        }
+        void HandleBeginFrame(StringHash eventType,VariantMap& eventData) {}
+        void HandleRenderUpdate(StringHash eventType, VariantMap & eventData) {}
+        void HandlePostUpdate(StringHash eventType,VariantMap& eventData){}
+        void HandleEndFrame(StringHash eventType,VariantMap& eventData) {}
+
+
 };
 
 URHO3D_DEFINE_APPLICATION_MAIN(Main);

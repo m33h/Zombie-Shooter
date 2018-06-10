@@ -17,6 +17,6 @@ void GameObject::RegisterObject(Context* context)
     context->RegisterFactory<GameObject>();
 }
 
-GameObject::GameObject(Context* context) : LogicComponent(context) {}
+GameObject::GameObject(Context* context) : LogicComponent(context), context_(context) {}
 GameObject::~GameObject() {}
 void GameObject::FixedUpdate(float step) {}

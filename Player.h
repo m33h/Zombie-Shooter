@@ -6,6 +6,8 @@
 using namespace Urho3D;
 
 class Player : public GameObject {
+        SharedPtr<Player> player;
+        int healthPoints;
         URHO3D_OBJECT(Player, GameObject);
 
     public:
@@ -15,6 +17,7 @@ class Player : public GameObject {
 
         void SetControls(const Controls& newControls);
         virtual void HandleUpdate(float timeStep);
+        void HandleCollision(StringHash eventType, VariantMap& eventData);
         virtual void Start();
         Controls controls;
 };
