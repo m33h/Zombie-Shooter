@@ -44,6 +44,8 @@
 #include "Urho3D/IO/Log.h"
 
 #include <stdio.h>
+#include "gs_main_menu.h"
+//#include "gs_playing.h"
 #include "Player.h"
 
 using namespace Urho3D;
@@ -58,7 +60,6 @@ class Main : public Application
     public:
         int framecount_;
         float time_;
-//        GameObject gameObject;
         SharedPtr<Text> text_;
         SharedPtr<Scene> scene_;
         SharedPtr<Node> boxNode_;
@@ -67,7 +68,6 @@ class Main : public Application
         Context* context;
 
         Main(Context * context) : Application(context), framecount_(0), time_(0), context(context) {
-//            gameObject = GameObject(context);
             Player::RegisterObject(context);
         }
 
@@ -83,16 +83,16 @@ class Main : public Application
         {
             ResourceCache *cache = GetSubsystem<ResourceCache>();
             GetSubsystem<UI>()->GetRoot()->SetDefaultStyle(cache->GetResource<XMLFile>("UI/DefaultStyle.xml"));
-
+//
             GetSubsystem<UI>()->GetRoot()->AddChild(text_);
-
+//
             scene_ = new Scene(context_);
             XMLFile *sceneFile = cache->GetResource<XMLFile>("assets/scenes/mainScene.xml");
             scene_->LoadXML(sceneFile->GetRoot());
-
+//
             scene_->CreateComponent<Octree>();
             scene_->CreateComponent<DebugRenderer>();
-
+//
             cameraNode_ = scene_->CreateChild("Camera");
             cameraNode_->SetPosition(Vector3(0,2,0));
             Camera *camera = cameraNode_->CreateComponent<Camera>();
@@ -103,9 +103,19 @@ class Main : public Application
             renderer->SetViewport(0, viewport);
 
             addPlayer();
-            addEnemies();
+//            addEnemies();
             initNavigation();
             subscribeToEvents();
+
+            globals::instance()->playerNode=playerNode;
+            globals::instance()->cameraNode=cameraNode_;
+            globals::instance()->cache=cache;
+            globals::instance()->camera=camera;
+            globals::instance()->scene=scene_;
+            globals::instance()->context=context_;
+            globals::instance()->ui_root=GetSubsystem<UI>()->GetRoot();
+            globals::instance()->engine=engine_;
+            globals::instance()->game_states.emplace_back(new gs_main_menu);
         }
 
         void subscribeToEvents() {
@@ -113,7 +123,6 @@ class Main : public Application
             SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(Main, HandleUpdate));
             SubscribeToEvent(E_POSTRENDERUPDATE, URHO3D_HANDLER(Main, HandlePostRenderUpdate));
             SubscribeToEvent(E_CROWD_AGENT_REPOSITION, URHO3D_HANDLER(Main, HandleCrowdAgentReposition));
-//            SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(Player, HandleCollision));
             SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(Main, HandlePlayerCollision));
         }
 
@@ -175,33 +184,31 @@ class Main : public Application
         }
 
         void HandlePlayerCollision(StringHash eventType, VariantMap& eventData) {
-            URHO3D_LOGINFO("handl collidion");
+//            URHO3D_LOGINFO("handl collidion");
         }
 
         void HandleCrowdAgentReposition(StringHash eventType, VariantMap& eventData) {
-            static const char* WALKING_ANI = "Models/Kachujin/Kachujin_Walk.ani";
+            static const char *WALKING_ANI = "Models/Kachujin/Kachujin_Walk.ani";
 
             using namespace CrowdAgentReposition;
 
-            Node* node = static_cast<Node*>(eventData[P_NODE].GetPtr());
-            CrowdAgent* agent = static_cast<CrowdAgent*>(eventData[P_CROWD_AGENT].GetPtr());
+            Node *node = static_cast<Node *>(eventData[P_NODE].GetPtr());
+            CrowdAgent *agent = static_cast<CrowdAgent *>(eventData[P_CROWD_AGENT].GetPtr());
             Vector3 velocity = eventData[P_VELOCITY].GetVector3();
             float timeStep = eventData[P_TIMESTEP].GetFloat();
 
             // Only Jack agent has animation controller
-            AnimationController* animCtrl = node->GetComponent<AnimationController>();
-            if (animCtrl)
-            {
+            AnimationController *animCtrl = node->GetComponent<AnimationController>();
+            if (animCtrl) {
                 float speed = velocity.Length();
-                if (animCtrl->IsPlaying(WALKING_ANI))
-                {
+                if (animCtrl->IsPlaying(WALKING_ANI)) {
                     float speedRatio = speed / agent->GetMaxSpeed();
                     // Face the direction of its velocity but moderate the turning speed based on the speed ratio and timeStep
-                    node->SetRotation(node->GetRotation().Slerp(Quaternion(Vector3::FORWARD, velocity), 10.0f * timeStep * speedRatio));
+                    node->SetRotation(node->GetRotation().Slerp(Quaternion(Vector3::FORWARD, velocity),
+                                                                10.0f * timeStep * speedRatio));
                     // Throttle the animation speed based on agent speed ratio (ratio = 1 is full throttle)
                     animCtrl->SetSpeed(WALKING_ANI, speedRatio * 1.5f);
-                }
-                else
+                } else
                     animCtrl->Play(WALKING_ANI, 0, true, 0.1f);
 
                 // If speed is too low then stop the animation
@@ -211,27 +218,27 @@ class Main : public Application
         }
 
         void UpdateEnemyDestination() {
-            Camera *camera = cameraNode_->GetComponent<Camera>();
+            if(!globals::instance()->toggleMenu) {
+                Camera *camera = cameraNode_->GetComponent<Camera>();
 
-            Vector3 hitPos = cameraNode_->GetPosition();
-            hitPos.y_ = 0;
+                Vector3 hitPos = cameraNode_->GetPosition();
+                hitPos.y_ = 0;
 
-            NavigationMesh *navMesh = scene_->GetComponent<NavigationMesh>();
+                NavigationMesh *navMesh = scene_->GetComponent<NavigationMesh>();
 
-            Vector3 pathPos = navMesh->FindNearestPoint(hitPos, Vector3(1.0f, 1.0f, 1.0f));
+                Vector3 pathPos = navMesh->FindNearestPoint(hitPos, Vector3(1.0f, 1.0f, 1.0f));
 
-            Node* jackGroup = scene_->GetChild("Jacks");
+                Node* jackGroup = scene_->GetChild("Jacks");
 
-            scene_->GetComponent<CrowdManager>()->SetCrowdTarget(pathPos, jackGroup);
+                scene_->GetComponent<CrowdManager>()->SetCrowdTarget(pathPos, jackGroup);
+            }
         }
 
         void FollowPath(float timeStep) {
             Node *jackNode_ = scene_->GetChild("Jill");
 
             if (currentPath_.Size()) {
-                Vector3 nextWaypoint = currentPath_[0]; // NB: currentPath[0] is the next waypoint in order
-
-                // Rotate Jack toward next waypoint to reach and move. Check for not overshooting the target
+                Vector3 nextWaypoint = currentPath_[0];
                 float move = 5.0f * timeStep;
                 float distance = (jackNode_->GetPosition() - nextWaypoint).Length();
                 if (move > distance)
@@ -240,7 +247,6 @@ class Main : public Application
                 jackNode_->LookAt(nextWaypoint, Vector3::UP);
                 jackNode_->Translate(Vector3::FORWARD * move);
 
-                // Remove waypoint if reached it
                 if (distance < 3.f)
                     currentPath_.Erase(0);
             }
@@ -249,7 +255,6 @@ class Main : public Application
         void initNavigation() {
             CrowdManager* crowdManager = scene_->CreateComponent<CrowdManager>();
             CrowdObstacleAvoidanceParams params = crowdManager->GetObstacleAvoidanceParams(0);
-            // Set the params to "High (66)" setting
             params.velBias = 0.5f;
             params.adaptiveDivs = 7;
             params.adaptiveRings = 3;
@@ -295,8 +300,12 @@ class Main : public Application
         void HandleKeyDown(StringHash eventType, VariantMap &eventData) {
             using namespace KeyDown;
             int key = eventData[P_KEY].GetInt();
-            if (key == KEY_ESCAPE)
-                engine_->Exit();
+            if (key == KEY_ESCAPE) {
+                globals::instance()->game_states.emplace_back(new gs_main_menu);
+                globals::instance()->toggleMenu = !globals::instance()->toggleMenu;
+            }
+
+//            engine_->Exit();
 
             if (key == KEY_TAB)    // toggle mouse cursor when pressing tab
             {
@@ -305,21 +314,17 @@ class Main : public Application
             }
         }
 
-//        void HandleClosePressed(StringHash eventType,VariantMap& eventData) {
-//            engine_->Exit();
-//        }
-
         void HandleUpdate(StringHash eventType,VariantMap& eventData) {
             float timeStep = eventData[Update::P_TIMESTEP].GetFloat();
             framecount_++;
             time_ += timeStep;
 
-            float MOVE_SPEED = 10.0f;
-            const float MOUSE_SENSITIVITY = 0.1f;
+            float MOVE_SPEED = 1;
+            const float MOUSE_SENSITIVITY = 1;
 
             Input *input = GetSubsystem<Input>();
             if (input->GetQualifierDown(1))  // 1 is shift, 2 is ctrl, 4 is alt
-                MOVE_SPEED *= 10;
+                MOVE_SPEED *= 1;
             if (input->GetKeyDown('W')){
                 cameraNode_->Translate(Vector3(0, 0, 1) * MOVE_SPEED * timeStep);
             }
@@ -337,19 +342,19 @@ class Main : public Application
                 UpdateEnemyDestination();
             }
 
-            if (!GetSubsystem<Input>()->IsMouseVisible()) {
-                IntVector2 mouseMove = input->GetMouseMove();
-                static float yaw_ = 0;
-                static float pitch_ = 0;
-                yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
-                pitch_ = Clamp(pitch_, -90.0f, 90.0f);
-                cameraNode_->SetDirection(Vector3::FORWARD);
-                playerNode->SetDirection(Vector3::FORWARD);
-                cameraNode_->Yaw(yaw_);
-                playerNode->Yaw(yaw_);
-                cameraNode_->Pitch(pitch_);
-                playerNode->Pitch(pitch_);
-            }
+//            if (!GetSubsystem<Input>()->IsMouseVisible()) {
+//                IntVector2 mouseMove = input->GetMouseMove();
+//                static float yaw_ = 0;
+//                static float pitch_ = 0;
+//                yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
+//                pitch_ = Clamp(pitch_, -90.0f, 90.0f);
+//                cameraNode_->SetDirection(Vector3::FORWARD);
+//                playerNode->SetDirection(Vector3::FORWARD);
+//                cameraNode_->Yaw(yaw_);
+//                playerNode->Yaw(yaw_);
+//                cameraNode_->Pitch(pitch_);
+//                playerNode->Pitch(pitch_);
+//            }
         }
 
         void HandleClosePressed(StringHash eventType,VariantMap& eventData)

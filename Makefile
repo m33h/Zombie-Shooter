@@ -223,6 +223,60 @@ Player.cpp.s:
 	$(MAKE) -f CMakeFiles/zombie-shooter.dir/build.make CMakeFiles/zombie-shooter.dir/Player.cpp.s
 .PHONY : Player.cpp.s
 
+gs_main_menu.o: gs_main_menu.cpp.o
+
+.PHONY : gs_main_menu.o
+
+# target to build an object file
+gs_main_menu.cpp.o:
+	$(MAKE) -f CMakeFiles/zombie-shooter.dir/build.make CMakeFiles/zombie-shooter.dir/gs_main_menu.cpp.o
+.PHONY : gs_main_menu.cpp.o
+
+gs_main_menu.i: gs_main_menu.cpp.i
+
+.PHONY : gs_main_menu.i
+
+# target to preprocess a source file
+gs_main_menu.cpp.i:
+	$(MAKE) -f CMakeFiles/zombie-shooter.dir/build.make CMakeFiles/zombie-shooter.dir/gs_main_menu.cpp.i
+.PHONY : gs_main_menu.cpp.i
+
+gs_main_menu.s: gs_main_menu.cpp.s
+
+.PHONY : gs_main_menu.s
+
+# target to generate assembly for a file
+gs_main_menu.cpp.s:
+	$(MAKE) -f CMakeFiles/zombie-shooter.dir/build.make CMakeFiles/zombie-shooter.dir/gs_main_menu.cpp.s
+.PHONY : gs_main_menu.cpp.s
+
+gs_playing.o: gs_playing.cpp.o
+
+.PHONY : gs_playing.o
+
+# target to build an object file
+gs_playing.cpp.o:
+	$(MAKE) -f CMakeFiles/zombie-shooter.dir/build.make CMakeFiles/zombie-shooter.dir/gs_playing.cpp.o
+.PHONY : gs_playing.cpp.o
+
+gs_playing.i: gs_playing.cpp.i
+
+.PHONY : gs_playing.i
+
+# target to preprocess a source file
+gs_playing.cpp.i:
+	$(MAKE) -f CMakeFiles/zombie-shooter.dir/build.make CMakeFiles/zombie-shooter.dir/gs_playing.cpp.i
+.PHONY : gs_playing.cpp.i
+
+gs_playing.s: gs_playing.cpp.s
+
+.PHONY : gs_playing.s
+
+# target to generate assembly for a file
+gs_playing.cpp.s:
+	$(MAKE) -f CMakeFiles/zombie-shooter.dir/build.make CMakeFiles/zombie-shooter.dir/gs_playing.cpp.s
+.PHONY : gs_playing.cpp.s
+
 main.o: main.cpp.o
 
 .PHONY : main.o
@@ -269,6 +323,12 @@ help:
 	@echo "... Player.o"
 	@echo "... Player.i"
 	@echo "... Player.s"
+	@echo "... gs_main_menu.o"
+	@echo "... gs_main_menu.i"
+	@echo "... gs_main_menu.s"
+	@echo "... gs_playing.o"
+	@echo "... gs_playing.i"
+	@echo "... gs_playing.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
