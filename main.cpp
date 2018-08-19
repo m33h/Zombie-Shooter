@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string>
 #include <sstream>
 
@@ -48,12 +49,12 @@
 #include <Urho3D/Audio/AudioEvents.h>
 #include <Urho3D/Audio/Sound.h>
 #include <Urho3D/Audio/SoundSource.h>
-
 #include <Bullet/LinearMath/btIDebugDraw.h>
 
-#include <stdio.h>
 #include "Player.h"
 #include "Zombie.h"
+#include "gs_main_menu.h"
+#include "gs_playing.h"
 
 using namespace Urho3D;
 
@@ -62,7 +63,6 @@ using namespace Urho3D;
 
 class Main : public Application
 {
-
     StringHash EVENT_ENEMY_HIT = StringHash("asdasdasd");
 
     public:
@@ -74,7 +74,6 @@ class Main : public Application
         SharedPtr<Node> playerNode;
         Context* context;
         PhysicsWorld* pw;
-
 
     Main(Context *context) : Application(context), framecount_(0), time_(0), context(context) {
         Player::RegisterObject(context);
@@ -114,10 +113,17 @@ class Main : public Application
 
         pw = scene_->GetComponent<PhysicsWorld>();
 
-        addPlayer();
-        addEnemies();
-        initNavigation();
         subscribeToEvents();
+
+        globals::instance()->playerNode=playerNode;
+        globals::instance()->cameraNode=cameraNode_;
+        globals::instance()->cache=cache;
+        globals::instance()->camera=camera;
+        globals::instance()->scene=scene_;
+        globals::instance()->context=context_;
+        globals::instance()->ui_root=GetSubsystem<UI>()->GetRoot();
+        globals::instance()->engine=engine_;
+        globals::instance()->game_states.emplace_back(new gs_playing);
     }
 
     void initSight() {
@@ -132,275 +138,77 @@ class Main : public Application
         GetSubsystem<UI>()->GetRoot()->AddChild(aimView);
     }
 
-        void subscribeToEvents() {
-            SubscribeToEvent(E_KEYDOWN, URHO3D_HANDLER(Main, HandleKeyDown));
-            SubscribeToEvent(E_MOUSEBUTTONDOWN, URHO3D_HANDLER(Main, HandleMouseDown));
-            SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(Main, HandleUpdate));
-            SubscribeToEvent(E_POSTRENDERUPDATE, URHO3D_HANDLER(Main, HandlePostRenderUpdate));
-            SubscribeToEvent(E_CROWD_AGENT_REPOSITION, URHO3D_HANDLER(Main, HandleCrowdAgentReposition));
-            SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(Main, HandlePlayerCollision));
+    void HandleMouseDown(StringHash eventType, VariantMap &eventData) {
+
+        using namespace MouseButtonDown;
+        int key = eventData[P_BUTTON].GetInt();
+
+        if(key == MOUSEB_LEFT) {
+            Shoot();
         }
+    }
 
-        void addPlayer() {
-            ResourceCache *cache = GetSubsystem<ResourceCache>();
+    void subscribeToEvents() {
+        SubscribeToEvent(E_KEYDOWN, URHO3D_HANDLER(Main, HandleKeyDown));
+    }
 
-            playerNode = cameraNode_ -> CreateChild("Player");
+    void HandlePlayerCollision(StringHash eventType, VariantMap& eventData) {}
 
-            playerNode->CreateComponent<LogicComponent>();
+    virtual void Stop() {}
 
-            RigidBody *body = playerNode->CreateComponent<RigidBody>();
-            body->SetCollisionLayer(1);
-            body->SetMass(0.01f);
-            body->SetRollingFriction(0.15f);
-            body->SetAngularFactor(Vector3::ZERO);
-
-            CollisionShape *shape = playerNode->CreateComponent<CollisionShape>();
-            shape->SetCapsule(0.7f, 1.8f, Vector3(0.0f, 0.9f, 0.0f));
-            AnimatedModel *modelObject = playerNode->CreateComponent<AnimatedModel>();
-            modelObject->SetModel(cache->GetResource<Model>("Models/Kachujin/Kachujin.mdl"));
-            modelObject->SetMaterial(cache->GetResource<Material>("Models/Kachujin/Materials/Kachujin.xml"));
-            modelObject->SetCastShadows(true);
-
-            playerNode->CreateComponent<AnimationController>();
+    void HandleKeyDown(StringHash eventType, VariantMap &eventData) {
+        using namespace KeyDown;
+        int key = eventData[P_KEY].GetInt();
+        if (key == KEY_ESCAPE) {
+            globals::instance()->game_states.emplace_back(new gs_main_menu);
+            globals::instance()->toggleMenu = !globals::instance()->toggleMenu;
         }
+    }
 
-        void addEnemies() {
-            ResourceCache *cache = GetSubsystem<ResourceCache>();
+    void Shoot() {
 
-            const float MODEL_MOVE_SPEED = 2.0f;
-            const float MODEL_ROTATE_SPEED = 100.0f;
-            const BoundingBox bounds(Vector3(-20.0f, 0.0f, -20.0f), Vector3(20.0f, 0.0f, 20.0f));
+        PlayShootingSound();
 
-            Node *jacks = scene_->CreateChild("Enemies");
+        Graphics* graphics = GetSubsystem<Graphics>();
+        Camera* camera = cameraNode_->GetComponent<Camera>();
+        Ray cameraRay = camera->GetScreenRay((float) graphics->GetWidth()/2/graphics->GetWidth(), (float)graphics->GetHeight()/2/graphics->GetHeight());
 
-            for (unsigned i = 0; i < NUM_MODELS; ++i) {
-                Node *modelNode = jacks->CreateChild("Jill");
-                modelNode->AddTag("Enemy");
-                modelNode->SetPosition(Vector3(Random(40.0f) - 20.0f, 0.0f, Random(40.0f) - 20.0f));
-                modelNode->SetRotation(Quaternion(0.0f, Random(360.0f), 0.0f));
+        PODVector<RayQueryResult> results;
+        RayOctreeQuery query(results, cameraRay, RAY_TRIANGLE, M_INFINITY, DRAWABLE_GEOMETRY);
+        scene_->GetComponent<Octree>()->Raycast(query);
 
-                RigidBody *body = modelNode->CreateComponent<RigidBody>();
-                body->SetCollisionLayer(1);
-                body->SetMass(0.01f);
-                body->SetRollingFriction(0.15f);
-                body->SetAngularFactor(Vector3::ZERO);
-
-                CollisionShape *shape = modelNode->CreateComponent<CollisionShape>();
-                shape->SetCapsule(0.7f, 1.8f, Vector3(0.0f, 0.9f, 0.0f));
-
-                AnimatedModel *modelObject = modelNode->CreateComponent<AnimatedModel>();
-                modelObject->SetModel(cache->GetResource<Model>("Models/Kachujin/Kachujin.mdl"));
-                modelObject->SetMaterial(cache->GetResource<Material>("Models/Kachujin/Materials/Kachujin.xml"));
-                modelObject->SetCastShadows(true);
-
-                CrowdAgent* agent = modelNode->CreateComponent<CrowdAgent>();
-                agent->SetHeight(2.0f);
-                agent->SetMaxSpeed(3.0f);
-                agent->SetMaxAccel(5.0f);
-
-                modelNode->CreateComponent<AnimationController>();
-                Zombie* zombieComponent = modelNode->CreateComponent<Zombie>();
-            }
-
-
-        }
-
-        void HandlePlayerCollision(StringHash eventType, VariantMap& eventData) {
-            //   URHO3D_LOGINFO("handl collidion");
-        }
-
-        void HandleCrowdAgentReposition(StringHash eventType, VariantMap& eventData) {
-            static const char* WALKING_ANI = "Models/Kachujin/Kachujin_Walk.ani";
-
-            using namespace CrowdAgentReposition;
-
-            Node* node = static_cast<Node*>(eventData[P_NODE].GetPtr());
-            CrowdAgent* agent = static_cast<CrowdAgent*>(eventData[P_CROWD_AGENT].GetPtr());
-            Vector3 velocity = eventData[P_VELOCITY].GetVector3();
-            float timeStep = eventData[P_TIMESTEP].GetFloat();
-
-            // Only Jack agent has animation controller
-            AnimationController* animCtrl = node->GetComponent<AnimationController>();
-            if (animCtrl)
-            {
-                float speed = velocity.Length();
-                if (animCtrl->IsPlaying(WALKING_ANI))
-                {
-                    float speedRatio = speed / agent->GetMaxSpeed();
-                    // Face the direction of its velocity but moderate the turning speed based on the speed ratio and timeStep
-                    node->SetRotation(node->GetRotation().Slerp(Quaternion(Vector3::FORWARD, velocity), 10.0f * timeStep * speedRatio));
-                    // Throttle the animation speed based on agent speed ratio (ratio = 1 is full throttle)
-                    animCtrl->SetSpeed(WALKING_ANI, speedRatio * 1.5f);
-                }
-                else
-                    animCtrl->Play(WALKING_ANI, 0, true, 0.1f);
-
-                // If speed is too low then stop the animation
-                if (speed < agent->GetRadius())
-                    animCtrl->Stop(WALKING_ANI, 0.5f);
-            }
-        }
-
-        void UpdateEnemyDestination() {
-            Camera *camera = cameraNode_->GetComponent<Camera>();
-
-            Vector3 hitPos = cameraNode_->GetPosition();
-            hitPos.y_ = 0;
-
-            NavigationMesh *navMesh = scene_->GetComponent<NavigationMesh>();
-
-            Vector3 pathPos = navMesh->FindNearestPoint(hitPos, Vector3(1.0f, 1.0f, 1.0f));
-
-            Node* jackGroup = scene_->GetChild("Jacks");
-
-            scene_->GetComponent<CrowdManager>()->SetCrowdTarget(pathPos, jackGroup);
-        }
-
-        void initNavigation() {
-            CrowdManager* crowdManager = scene_->CreateComponent<CrowdManager>();
-            CrowdObstacleAvoidanceParams params = crowdManager->GetObstacleAvoidanceParams(0);
-            // Set the params to "High (66)" setting
-            params.velBias = 0.5f;
-            params.adaptiveDivs = 7;
-            params.adaptiveRings = 3;
-            params.adaptiveDepth = 3;
-            crowdManager->SetObstacleAvoidanceParams(0, params);
-
-            NavigationMesh *navMesh = scene_->GetComponent<NavigationMesh>();
-            navMesh->SetDrawNavAreas(true);
-            navMesh->SetDrawOffMeshConnections(true);
-            navMesh->SetAgentHeight(10.0f);
-            // Set nav mesh cell height to minimum (allows agents to be grounded)
-            navMesh->SetCellHeight(0.05f);
-            navMesh->SetPadding(Vector3(0.0f, 10.0f, 0.0f));
-            navMesh->Build();
-
-            UpdateEnemyDestination();
-        }
-
-        void HandleMouseDown(StringHash eventType, VariantMap &eventData) {
-
-            using namespace MouseButtonDown;
-            int key = eventData[P_BUTTON].GetInt();
-
-            if(key == MOUSEB_LEFT) {
-                Shoot();
-            }
-        }
-
-        void HandleKeyDown(StringHash eventType, VariantMap &eventData) {
-            using namespace KeyDown;
-            int key = eventData[P_KEY].GetInt();
-            if (key == KEY_ESCAPE)
-                engine_->Exit();
-
-            if (key == KEY_TAB)    // toggle mouse cursor when pressing tab
-            {
-                GetSubsystem<Input>()->SetMouseVisible(!GetSubsystem<Input>()->IsMouseVisible());
-                GetSubsystem<Input>()->SetMouseGrabbed(!GetSubsystem<Input>()->IsMouseGrabbed());
-            }
-        }
-
-        void Shoot() {
-
-            PlayShootingSound();
-
-            Graphics* graphics = GetSubsystem<Graphics>();
-            Camera* camera = cameraNode_->GetComponent<Camera>();
-            Ray cameraRay = camera->GetScreenRay((float) graphics->GetWidth()/2/graphics->GetWidth(), (float)graphics->GetHeight()/2/graphics->GetHeight());
-
-            PODVector<RayQueryResult> results;
-            RayOctreeQuery query(results, cameraRay, RAY_TRIANGLE, M_INFINITY, DRAWABLE_GEOMETRY);
-            scene_->GetComponent<Octree>()->Raycast(query);
-
-            if (results.Size())
-            {
-                RayQueryResult& result = results[0];
-
-                if(result.node_->HasTag("Enemy")) {
-                    if(result.node_->HasComponent<Zombie>()) {
-                       result.node_->GetComponent<Zombie>()->GotHit();
-                    }
-                }
-            }
-        }
-
-        void PlayShootingSound() {
-            const String& soundResourceName = "assets/Music/shoot.wav";
-
-            // Get the sound resource
-            ResourceCache* cache = GetSubsystem<ResourceCache>();
-            Sound* sound = cache->GetResource<Sound>(soundResourceName);
-
-            if (sound)
-            {
-                SoundSource* soundSource = scene_->CreateComponent<SoundSource>();
-                soundSource->SetAutoRemoveMode(REMOVE_COMPONENT);
-                soundSource->Play(sound);
-                soundSource->SetGain(0.75f);
-            }
-        }
-
-        void HandleUpdate(StringHash eventType,VariantMap& eventData) {
-
-            float timeStep = eventData[Update::P_TIMESTEP].GetFloat();
-            framecount_++;
-            time_ += timeStep;
-
-            float MOVE_SPEED = 10.0f;
-            const float MOUSE_SENSITIVITY = 0.1f;
-
-            Input *input = GetSubsystem<Input>();
-            if (input->GetQualifierDown(1))  // 1 is shift, 2 is ctrl, 4 is alt
-                MOVE_SPEED *= 10;
-            if (input->GetKeyDown('W')){
-                cameraNode_->Translate(Vector3(0, 0, 1) * MOVE_SPEED * timeStep);
-            }
-            if (input->GetKeyDown('S')){
-                cameraNode_->Translate(Vector3(0, 0, -1) * MOVE_SPEED * timeStep);
-            }
-            if (input->GetKeyDown('A')) {
-                cameraNode_->Translate(Vector3(-1, 0, 0) * MOVE_SPEED * timeStep);
-            }
-            if (input->GetKeyDown('D')) {
-                cameraNode_->Translate(Vector3(1, 0, 0) * MOVE_SPEED * timeStep);
-            }
-
-            if((int)time_ % 3 == 0 ) {
-                UpdateEnemyDestination();
-            }
-
-            if (!GetSubsystem<Input>()->IsMouseVisible()) {
-                IntVector2 mouseMove = input->GetMouseMove();
-                static float yaw_ = 0;
-                static float pitch_ = 0;
-                yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
-                pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
-                cameraNode_->SetDirection(Vector3::FORWARD);
-                playerNode->SetDirection(Vector3::FORWARD);
-                cameraNode_->Yaw(yaw_);
-                playerNode->Yaw(yaw_);
-                cameraNode_->Pitch(pitch_);
-                playerNode->Pitch(pitch_);
-            }
-        }
-
-        void HandleClosePressed(StringHash eventType,VariantMap& eventData)
+        if (results.Size())
         {
-            engine_->Exit();
-        }
+            RayQueryResult& result = results[0];
 
-        void HandlePostRenderUpdate(StringHash eventType, VariantMap & eventData) {
-            // Visualize navigation mesh, obstacles and off-mesh connections
-            scene_->GetComponent<NavigationMesh>()->DrawDebugGeometry(true);
-            // Visualize agents' path and position to reach
-            scene_->GetComponent<CrowdManager>()->DrawDebugGeometry(true);
+            if(result.node_->HasTag("Enemy")) {
+                if(result.node_->HasComponent<Zombie>()) {
+                   result.node_->GetComponent<Zombie>()->GotHit();
+                }
+            }
         }
+    }
 
-        void HandleBeginFrame(StringHash eventType, VariantMap& eventData) {}
-        void HandleRenderUpdate(StringHash eventType, VariantMap & eventData) {}
-        void HandlePostUpdate(StringHash eventType,VariantMap& eventData) {}
-        void HandleEndFrame(StringHash eventType,VariantMap& eventData) {}
+    void PlayShootingSound() {
+        const String& soundResourceName = "assets/Music/shoot.wav";
+
+        // Get the sound resource
+        ResourceCache* cache = GetSubsystem<ResourceCache>();
+        Sound* sound = cache->GetResource<Sound>(soundResourceName);
+
+        if (sound)
+        {
+            SoundSource* soundSource = scene_->CreateComponent<SoundSource>();
+            soundSource->SetAutoRemoveMode(REMOVE_COMPONENT);
+            soundSource->Play(sound);
+            soundSource->SetGain(0.75f);
+        }
+    }
+    void HandleUpdate(StringHash eventType,VariantMap& eventData) {}
+    void HandleBeginFrame(StringHash eventType, VariantMap& eventData) {}
+    void HandleRenderUpdate(StringHash eventType, VariantMap & eventData) {}
+    void HandlePostUpdate(StringHash eventType,VariantMap& eventData) {}
+    void HandleEndFrame(StringHash eventType,VariantMap& eventData) {}
 };
 
 URHO3D_DEFINE_APPLICATION_MAIN(Main);

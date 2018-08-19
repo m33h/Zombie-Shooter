@@ -20,6 +20,7 @@ Player::~Player() {}
 
 void Player::RegisterObject(Context *context) {
     context -> RegisterFactory<Player>();
+    SharedPtr<Player> player = context->CreateObject<Player>();
 }
 
 void Player::SetControls(const Controls &newControls) {
