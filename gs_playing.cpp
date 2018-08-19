@@ -1,5 +1,3 @@
-#include "gs_playing.h"
-
 #include <string>
 #include <sstream>
 #include <Urho3D/Graphics/BillboardSet.h>
@@ -88,7 +86,7 @@
 #include <Urho3D/Navigation/OffMeshConnection.h>
 #include "Urho3D/IO/Log.h"
 
-////#include "gs_playing.h"
+#include "gs_playing.h"
 #include "gs_main_menu.h"
 
 #define NUM_MODELS 50
@@ -219,7 +217,7 @@ void gs_playing::HandleUpdate(StringHash eventType,VariantMap& eventData) {
 
 
     if((int)time_ % 3 == 0 ) {
-        UpdateEnemyDestination();
+        gs_playing::UpdateEnemyDestination();
     }
 
     if (!GetSubsystem<Input>()->IsMouseVisible()) {
@@ -294,19 +292,17 @@ void gs_playing::initNavigation() {
     navMesh->Build();
     //CreateBoxOffMeshConnections(navMesh);
 
-    UpdateEnemyDestination();
+    gs_playing::UpdateEnemyDestination();
 }
 
 void gs_playing::UpdateEnemyDestination() {
-    URHO3D_LOGINFO("update enemy destination");
+//    URHO3D_LOGINFO("update enemy destination");
 
-    Camera *camera = globals::instance()->cameraNode->GetComponent<Camera>();
-
-    Vector3 hitPos = globals::instance()->cameraNode->GetPosition();
+    Vector3 hitPos = cameraNode_->GetPosition();
     hitPos.y_ = 0;
 
     NavigationMesh *navMesh = globals::instance()->scene->GetComponent<NavigationMesh>();
-    Vector3 pathPos = navMesh->FindNearestPoint(hitPos, Vector3(10.0f, 1.0f, 1.0f));
+    Vector3 pathPos = navMesh->FindNearestPoint(hitPos, Vector3(1.0f, 1.0f, 1.0f));
     Node* jackGroup = globals::instance()->scene->GetChild("Jacks");
     globals::instance()->scene->GetComponent<CrowdManager>()->SetCrowdTarget(pathPos, jackGroup);
 }

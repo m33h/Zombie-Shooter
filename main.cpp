@@ -53,9 +53,6 @@ using namespace Urho3D;
 
 class Main : public Application
 {
-    /// Last calculated path.
-    PODVector<Vector3> currentPath_;
-
     public:
         int framecount_;
         float time_;

@@ -94,7 +94,6 @@
 class player;
 class gs_playing;
 
-/// The game state handling playing a level.
 class gs_playing : public game_state
 {
 public:
@@ -102,7 +101,7 @@ public:
     double timer_playing=0;
     double goal_time=0;
     std::vector<Urho3D::Node*> flag_nodes;
-    static std::string last_level_filename; ///< Used to restart the last played level (like from gs_level_end).
+    static std::string last_level_filename;
     int framecount_ = 0;
     int time_ = 0;
 
