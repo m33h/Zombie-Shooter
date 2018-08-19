@@ -223,6 +223,33 @@ Player.cpp.s:
 	$(MAKE) -f CMakeFiles/zombie-shooter.dir/build.make CMakeFiles/zombie-shooter.dir/Player.cpp.s
 .PHONY : Player.cpp.s
 
+Zombie.o: Zombie.cpp.o
+
+.PHONY : Zombie.o
+
+# target to build an object file
+Zombie.cpp.o:
+	$(MAKE) -f CMakeFiles/zombie-shooter.dir/build.make CMakeFiles/zombie-shooter.dir/Zombie.cpp.o
+.PHONY : Zombie.cpp.o
+
+Zombie.i: Zombie.cpp.i
+
+.PHONY : Zombie.i
+
+# target to preprocess a source file
+Zombie.cpp.i:
+	$(MAKE) -f CMakeFiles/zombie-shooter.dir/build.make CMakeFiles/zombie-shooter.dir/Zombie.cpp.i
+.PHONY : Zombie.cpp.i
+
+Zombie.s: Zombie.cpp.s
+
+.PHONY : Zombie.s
+
+# target to generate assembly for a file
+Zombie.cpp.s:
+	$(MAKE) -f CMakeFiles/zombie-shooter.dir/build.make CMakeFiles/zombie-shooter.dir/Zombie.cpp.s
+.PHONY : Zombie.cpp.s
+
 main.o: main.cpp.o
 
 .PHONY : main.o
@@ -269,6 +296,9 @@ help:
 	@echo "... Player.o"
 	@echo "... Player.i"
 	@echo "... Player.s"
+	@echo "... Zombie.o"
+	@echo "... Zombie.i"
+	@echo "... Zombie.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
