@@ -30,7 +30,6 @@
 #include <Urho3D/Graphics/ParticleEffect.h>
 #include <Urho3D/Scene/Node.h>
 
-/// The main menu displayed when starting the game.
 class gs_main_menu : public game_state
 {
 public:
@@ -45,6 +44,8 @@ public:
     void HandlePlayPressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleKeyDown(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleClosePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+    void HandleResumePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+
     virtual void Start();
 
     virtual const Urho3D::String& GetTypeName() const override {static Urho3D::String name("gs_main_menu");return name;}   // this could be correct
