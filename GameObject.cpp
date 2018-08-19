@@ -9,14 +9,8 @@
 #include <Urho3D/IO/Deserializer.h>
 #include <Urho3D/Container/Str.h>
 #include <Urho3D/Graphics/ParticleEffect.h>
-
 #include "GameObject.h"
 
-void GameObject::RegisterObject(Context* context)
-{
-    context->RegisterFactory<GameObject>();
-}
-
-GameObject::GameObject(Context* context) : LogicComponent(context), context_(context) {}
-GameObject::~GameObject() {}
+GameObject::GameObject(Context* context) : LogicComponent(context) { }
+GameObject::~GameObject() { }
 void GameObject::FixedUpdate(float step) {}

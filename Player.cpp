@@ -20,19 +20,12 @@ Player::~Player() {}
 
 void Player::RegisterObject(Context *context) {
     context -> RegisterFactory<Player>();
-    SharedPtr<Player> player = context->CreateObject<Player>();
-
-    URHO3D_LOGINFO("dupa");
 }
 
 void Player::SetControls(const Controls &newControls) {
     controls = newControls;
 }
 
-void Player::Start() {}
-
 void Player::HandleUpdate(float timeStep) {}
 
-void Player::HandleCollision(StringHash eventType, VariantMap& eventData) {
-    URHO3D_LOGINFO("handle pp collidion");
-}
+void Player::HandleCollision(StringHash eventType, VariantMap& eventData) {}

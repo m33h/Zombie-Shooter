@@ -17,6 +17,7 @@
 #include <Urho3D/Scene/Scene.h>
 #include <Urho3D/Scene/SceneEvents.h>
 #include <Urho3D/Graphics/Graphics.h>
+#include <Urho3D/Graphics/Texture2D.h>
 #include <Urho3D/Graphics/Camera.h>
 #include <Urho3D/Graphics/Geometry.h>
 #include <Urho3D/Graphics/Renderer.h>
@@ -34,6 +35,7 @@
 #include <Urho3D/Physics/RigidBody.h>
 #include <Urho3D/Physics/CollisionShape.h>
 #include <Urho3D/Physics/Constraint.h>
+#include <Urho3D/Physics/PhysicsWorld.h>
 #include <Urho3D/Navigation/Navigable.h>
 #include <Urho3D/Navigation/NavigationMesh.h>
 #include <Urho3D/Navigation/CrowdAgent.h>
@@ -42,78 +44,100 @@
 #include <Urho3D/Navigation/Obstacle.h>
 #include <Urho3D/Navigation/OffMeshConnection.h>
 #include "Urho3D/IO/Log.h"
+#include <Urho3D/Audio/Audio.h>
+#include <Urho3D/Audio/AudioEvents.h>
+#include <Urho3D/Audio/Sound.h>
+#include <Urho3D/Audio/SoundSource.h>
+
+#include <Bullet/LinearMath/btIDebugDraw.h>
 
 #include <stdio.h>
 #include "Player.h"
+#include "Zombie.h"
 
 using namespace Urho3D;
 
 #define NUM_MODELS 50
 
+
 class Main : public Application
 {
-    /// Last calculated path.
-    PODVector<Vector3> currentPath_;
+
+    StringHash EVENT_ENEMY_HIT = StringHash("asdasdasd");
 
     public:
         int framecount_;
         float time_;
-//        GameObject gameObject;
         SharedPtr<Text> text_;
         SharedPtr<Scene> scene_;
-        SharedPtr<Node> boxNode_;
         SharedPtr<Node> cameraNode_;
         SharedPtr<Node> playerNode;
         Context* context;
+        PhysicsWorld* pw;
 
-        Main(Context * context) : Application(context), framecount_(0), time_(0), context(context) {
-//            gameObject = GameObject(context);
-            Player::RegisterObject(context);
-        }
 
-        virtual void Setup()
-        {
-            engineParameters_["FullScreen"]=false;
-            engineParameters_["WindowWidth"]=1280;
-            engineParameters_["WindowHeight"]=720;
-            engineParameters_["WindowResizable"]=true;
-        }
+    Main(Context *context) : Application(context), framecount_(0), time_(0), context(context) {
+        Player::RegisterObject(context);
+        Zombie::RegisterObject(context);
+    }
 
-        virtual void Start()
-        {
-            ResourceCache *cache = GetSubsystem<ResourceCache>();
-            GetSubsystem<UI>()->GetRoot()->SetDefaultStyle(cache->GetResource<XMLFile>("UI/DefaultStyle.xml"));
+    virtual void Setup() {
+        engineParameters_["FullScreen"] = false;
+        engineParameters_["WindowWidth"] = 1280;
+        engineParameters_["WindowHeight"] = 720;
+        engineParameters_["WindowResizable"] = true;
+    }
 
-            GetSubsystem<UI>()->GetRoot()->AddChild(text_);
+    virtual void Start() {
+        ResourceCache *cache = GetSubsystem<ResourceCache>();
+        GetSubsystem<UI>()->GetRoot()->SetDefaultStyle(cache->GetResource<XMLFile>("UI/DefaultStyle.xml"));
 
-            scene_ = new Scene(context_);
-            XMLFile *sceneFile = cache->GetResource<XMLFile>("assets/scenes/mainScene.xml");
-            scene_->LoadXML(sceneFile->GetRoot());
+        GetSubsystem<UI>()->GetRoot()->AddChild(text_);
 
-            scene_->CreateComponent<Octree>();
-            scene_->CreateComponent<DebugRenderer>();
+        initSight();
 
-            cameraNode_ = scene_->CreateChild("Camera");
-            cameraNode_->SetPosition(Vector3(0,2,0));
-            Camera *camera = cameraNode_->CreateComponent<Camera>();
-            camera->SetFarClip(2000);
+        scene_ = new Scene(context_);
+        XMLFile *sceneFile = cache->GetResource<XMLFile>("assets/scenes/mainScene.xml");
+        scene_->LoadXML(sceneFile->GetRoot());
 
-            Renderer *renderer = GetSubsystem<Renderer>();
-            SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
-            renderer->SetViewport(0, viewport);
+        scene_->CreateComponent<Octree>();
+        scene_->CreateComponent<DebugRenderer>();
 
-            addPlayer();
-            addEnemies();
-            initNavigation();
-            subscribeToEvents();
-        }
+        cameraNode_ = scene_->CreateChild("Camera");
+        cameraNode_->SetPosition(Vector3(0, 2, 0));
+        Camera *camera = cameraNode_->CreateComponent<Camera>();
+        camera->SetFarClip(2000);
+
+        Renderer *renderer = GetSubsystem<Renderer>();
+        SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
+        renderer->SetViewport(0, viewport);
+
+        pw = scene_->GetComponent<PhysicsWorld>();
+
+        addPlayer();
+        addEnemies();
+        initNavigation();
+        subscribeToEvents();
+    }
+
+    void initSight() {
+        ResourceCache *cache = GetSubsystem<ResourceCache>();
+
+        BorderImage *aimView = new BorderImage(context);
+
+        aimView->SetTexture(cache->GetResource<Texture2D>("Textures/aim.png"));
+        aimView->SetAlignment(HA_CENTER, VA_CENTER);
+        aimView->SetSize(128, 128);
+
+        GetSubsystem<UI>()->GetRoot()->AddChild(aimView);
+    }
 
         void subscribeToEvents() {
             SubscribeToEvent(E_KEYDOWN, URHO3D_HANDLER(Main, HandleKeyDown));
+            SubscribeToEvent(E_MOUSEBUTTONDOWN, URHO3D_HANDLER(Main, HandleMouseDown));
             SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(Main, HandleUpdate));
             SubscribeToEvent(E_POSTRENDERUPDATE, URHO3D_HANDLER(Main, HandlePostRenderUpdate));
             SubscribeToEvent(E_CROWD_AGENT_REPOSITION, URHO3D_HANDLER(Main, HandleCrowdAgentReposition));
-//            SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(Player, HandleCollision));
             SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(Main, HandlePlayerCollision));
         }
 
@@ -121,6 +145,9 @@ class Main : public Application
             ResourceCache *cache = GetSubsystem<ResourceCache>();
 
             playerNode = cameraNode_ -> CreateChild("Player");
+
+            playerNode->CreateComponent<LogicComponent>();
+
             RigidBody *body = playerNode->CreateComponent<RigidBody>();
             body->SetCollisionLayer(1);
             body->SetMass(0.01f);
@@ -144,10 +171,11 @@ class Main : public Application
             const float MODEL_ROTATE_SPEED = 100.0f;
             const BoundingBox bounds(Vector3(-20.0f, 0.0f, -20.0f), Vector3(20.0f, 0.0f, 20.0f));
 
-            Node *jacks = scene_->CreateChild("Jacks");
+            Node *jacks = scene_->CreateChild("Enemies");
 
             for (unsigned i = 0; i < NUM_MODELS; ++i) {
                 Node *modelNode = jacks->CreateChild("Jill");
+                modelNode->AddTag("Enemy");
                 modelNode->SetPosition(Vector3(Random(40.0f) - 20.0f, 0.0f, Random(40.0f) - 20.0f));
                 modelNode->SetRotation(Quaternion(0.0f, Random(360.0f), 0.0f));
 
@@ -171,11 +199,14 @@ class Main : public Application
                 agent->SetMaxAccel(5.0f);
 
                 modelNode->CreateComponent<AnimationController>();
+                Zombie* zombieComponent = modelNode->CreateComponent<Zombie>();
             }
+
+
         }
 
         void HandlePlayerCollision(StringHash eventType, VariantMap& eventData) {
-            URHO3D_LOGINFO("handl collidion");
+            //   URHO3D_LOGINFO("handl collidion");
         }
 
         void HandleCrowdAgentReposition(StringHash eventType, VariantMap& eventData) {
@@ -225,27 +256,6 @@ class Main : public Application
             scene_->GetComponent<CrowdManager>()->SetCrowdTarget(pathPos, jackGroup);
         }
 
-        void FollowPath(float timeStep) {
-            Node *jackNode_ = scene_->GetChild("Jill");
-
-            if (currentPath_.Size()) {
-                Vector3 nextWaypoint = currentPath_[0]; // NB: currentPath[0] is the next waypoint in order
-
-                // Rotate Jack toward next waypoint to reach and move. Check for not overshooting the target
-                float move = 5.0f * timeStep;
-                float distance = (jackNode_->GetPosition() - nextWaypoint).Length();
-                if (move > distance)
-                    move = distance;
-
-                jackNode_->LookAt(nextWaypoint, Vector3::UP);
-                jackNode_->Translate(Vector3::FORWARD * move);
-
-                // Remove waypoint if reached it
-                if (distance < 3.f)
-                    currentPath_.Erase(0);
-            }
-        }
-
         void initNavigation() {
             CrowdManager* crowdManager = scene_->CreateComponent<CrowdManager>();
             CrowdObstacleAvoidanceParams params = crowdManager->GetObstacleAvoidanceParams(0);
@@ -264,33 +274,19 @@ class Main : public Application
             navMesh->SetCellHeight(0.05f);
             navMesh->SetPadding(Vector3(0.0f, 10.0f, 0.0f));
             navMesh->Build();
-            //CreateBoxOffMeshConnections(navMesh);
 
             UpdateEnemyDestination();
         }
 
-        void CreateBoxOffMeshConnections(NavigationMesh* navMesh) {
-            Node* boxesGroup = scene_->GetChild("Boxes");
+        void HandleMouseDown(StringHash eventType, VariantMap &eventData) {
 
-            const Vector<SharedPtr<Node> >& boxes = boxesGroup->GetChildren();
-            for (unsigned i=0; i < boxes.Size(); ++i)
-            {
-                Node* box = boxes[i];
-                Vector3 boxPos = box->GetPosition();
-                float boxHalfSize = box->GetScale().x_ / 2;
+            using namespace MouseButtonDown;
+            int key = eventData[P_BUTTON].GetInt();
 
-                // Create 2 empty nodes for the start & end points of the connection. Note that order matters only when using one-way/unidirectional connection.
-                Node* connectionStart = box->CreateChild("ConnectionStart");
-                connectionStart->SetWorldPosition(navMesh->FindNearestPoint(boxPos + Vector3(boxHalfSize, -boxHalfSize, 0))); // Base of box
-                Node* connectionEnd = connectionStart->CreateChild("ConnectionEnd");
-                connectionEnd->SetWorldPosition(navMesh->FindNearestPoint(boxPos + Vector3(boxHalfSize, boxHalfSize, 0))); // Top of box
-
-                // Create the OffMeshConnection component to one node and link the other node
-                OffMeshConnection* connection = connectionStart->CreateComponent<OffMeshConnection>();
-                connection->SetEndPoint(connectionEnd);
+            if(key == MOUSEB_LEFT) {
+                Shoot();
             }
         }
-        virtual void Stop() {}
 
         void HandleKeyDown(StringHash eventType, VariantMap &eventData) {
             using namespace KeyDown;
@@ -305,11 +301,48 @@ class Main : public Application
             }
         }
 
-//        void HandleClosePressed(StringHash eventType,VariantMap& eventData) {
-//            engine_->Exit();
-//        }
+        void Shoot() {
+
+            PlayShootingSound();
+
+            Graphics* graphics = GetSubsystem<Graphics>();
+            Camera* camera = cameraNode_->GetComponent<Camera>();
+            Ray cameraRay = camera->GetScreenRay((float) graphics->GetWidth()/2/graphics->GetWidth(), (float)graphics->GetHeight()/2/graphics->GetHeight());
+
+            PODVector<RayQueryResult> results;
+            RayOctreeQuery query(results, cameraRay, RAY_TRIANGLE, M_INFINITY, DRAWABLE_GEOMETRY);
+            scene_->GetComponent<Octree>()->Raycast(query);
+
+            if (results.Size())
+            {
+                RayQueryResult& result = results[0];
+
+                if(result.node_->HasTag("Enemy")) {
+                    if(result.node_->HasComponent<Zombie>()) {
+                       result.node_->GetComponent<Zombie>()->GotHit();
+                    }
+                }
+            }
+        }
+
+        void PlayShootingSound() {
+            const String& soundResourceName = "assets/Music/shoot.wav";
+
+            // Get the sound resource
+            ResourceCache* cache = GetSubsystem<ResourceCache>();
+            Sound* sound = cache->GetResource<Sound>(soundResourceName);
+
+            if (sound)
+            {
+                SoundSource* soundSource = scene_->CreateComponent<SoundSource>();
+                soundSource->SetAutoRemoveMode(REMOVE_COMPONENT);
+                soundSource->Play(sound);
+                soundSource->SetGain(0.75f);
+            }
+        }
 
         void HandleUpdate(StringHash eventType,VariantMap& eventData) {
+
             float timeStep = eventData[Update::P_TIMESTEP].GetFloat();
             framecount_++;
             time_ += timeStep;
@@ -342,7 +375,7 @@ class Main : public Application
                 static float yaw_ = 0;
                 static float pitch_ = 0;
                 yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
-                pitch_ = Clamp(pitch_, -90.0f, 90.0f);
+                pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
                 cameraNode_->SetDirection(Vector3::FORWARD);
                 playerNode->SetDirection(Vector3::FORWARD);
                 cameraNode_->Yaw(yaw_);
@@ -356,19 +389,18 @@ class Main : public Application
         {
             engine_->Exit();
         }
-        void HandlePostRenderUpdate(StringHash eventType, VariantMap & eventData){
+
+        void HandlePostRenderUpdate(StringHash eventType, VariantMap & eventData) {
             // Visualize navigation mesh, obstacles and off-mesh connections
             scene_->GetComponent<NavigationMesh>()->DrawDebugGeometry(true);
             // Visualize agents' path and position to reach
             scene_->GetComponent<CrowdManager>()->DrawDebugGeometry(true);
         }
 
-        void HandleBeginFrame(StringHash eventType,VariantMap& eventData) {}
+        void HandleBeginFrame(StringHash eventType, VariantMap& eventData) {}
         void HandleRenderUpdate(StringHash eventType, VariantMap & eventData) {}
-        void HandlePostUpdate(StringHash eventType,VariantMap& eventData){}
+        void HandlePostUpdate(StringHash eventType,VariantMap& eventData) {}
         void HandleEndFrame(StringHash eventType,VariantMap& eventData) {}
-
-
 };
 
 URHO3D_DEFINE_APPLICATION_MAIN(Main);

@@ -15,13 +15,9 @@ using namespace Urho3D;
 class GameObject : public LogicComponent
 {
     URHO3D_OBJECT(GameObject, LogicComponent);
-    SharedPtr<Scene> scene_;
 public:
     GameObject(Context* context);
-    GameObject(Context* context, SharedPtr<Scene> scene);
-    Context* context_;
     virtual ~GameObject();
-    static void RegisterObject(Context* context);
     virtual void FixedUpdate(float timeStep);
 };
 
