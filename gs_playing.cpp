@@ -44,48 +44,6 @@
 #include "Urho3D/IO/Log.h"
 #include <Urho3D/Scene/Node.h>
 
-#include <Urho3D/Core/CoreEvents.h>
-#include <Urho3D/Engine/Application.h>
-#include <Urho3D/Engine/Engine.h>
-#include <Urho3D/Input/Input.h>
-#include <Urho3D/Input/InputEvents.h>
-#include <Urho3D/Resource/ResourceCache.h>
-#include <Urho3D/Resource/XMLFile.h>
-#include <Urho3D/IO/Log.h>
-#include <Urho3D/UI/UI.h>
-#include <Urho3D/UI/Text.h>
-#include <Urho3D/UI/Font.h>
-#include <Urho3D/UI/Button.h>
-#include <Urho3D/UI/UIEvents.h>
-#include <Urho3D/Scene/Scene.h>
-#include <Urho3D/Scene/SceneEvents.h>
-#include <Urho3D/Graphics/Graphics.h>
-#include <Urho3D/Graphics/Camera.h>
-#include <Urho3D/Graphics/Geometry.h>
-#include <Urho3D/Graphics/Renderer.h>
-#include <Urho3D/Graphics/DebugRenderer.h>
-#include <Urho3D/Graphics/Octree.h>
-#include <Urho3D/Graphics/Light.h>
-#include <Urho3D/Graphics/Model.h>
-#include <Urho3D/Graphics/StaticModel.h>
-#include <Urho3D/Graphics/Material.h>
-#include <Urho3D/Graphics/Skybox.h>
-#include <Urho3D/Graphics/AnimatedModel.h>
-#include <Urho3D/Graphics/Animation.h>
-#include <Urho3D/Graphics/AnimationState.h>
-#include <Urho3D/Physics/PhysicsEvents.h>
-#include <Urho3D/Physics/RigidBody.h>
-#include <Urho3D/Physics/CollisionShape.h>
-#include <Urho3D/Physics/Constraint.h>
-#include <Urho3D/Navigation/Navigable.h>
-#include <Urho3D/Navigation/NavigationMesh.h>
-#include <Urho3D/Navigation/CrowdAgent.h>
-#include <Urho3D/Graphics/AnimationController.h>
-#include <Urho3D/Navigation/NavigationEvents.h>
-#include <Urho3D/Navigation/Obstacle.h>
-#include <Urho3D/Navigation/OffMeshConnection.h>
-#include "Urho3D/IO/Log.h"
-
 #include "gs_playing.h"
 #include "gs_main_menu.h"
 
@@ -94,10 +52,8 @@
 using namespace Urho3D;
 
 gs_playing::gs_playing() : game_state() {
-
-    URHO3D_LOGINFO("PLAY gs_playing");
-
     addPlayer();
+    initSight();
     addEnemies();
     initNavigation();
     subscribeToEvents();
@@ -110,7 +66,7 @@ void gs_playing::subscribeToEvents() {
     SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(gs_playing, HandleUpdate));
     SubscribeToEvent(E_POSTRENDERUPDATE, URHO3D_HANDLER(gs_playing, HandlePostRenderUpdate));
     SubscribeToEvent(E_CROWD_AGENT_REPOSITION, URHO3D_HANDLER(gs_playing, HandleCrowdAgentReposition));
-//    SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(Main, HandlePlayerCollision));
+    SubscribeToEvent(E_MOUSEBUTTONDOWN, URHO3D_HANDLER(gs_playing, HandleMouseDown));
 }
 
 void gs_playing::HandleKeyDown(StringHash eventType, VariantMap &eventData) {
@@ -128,10 +84,11 @@ void gs_playing::addEnemies() {
     const float MODEL_ROTATE_SPEED = 100.0f;
     const BoundingBox bounds(Vector3(-20.0f, 0.0f, -20.0f), Vector3(20.0f, 0.0f, 20.0f));
 
-    Node *jacks = globals::instance()->scene->CreateChild("Jacks");
+    Node *jacks = globals::instance()->scene->CreateChild("Enemies");
 
     for (unsigned i = 0; i < NUM_MODELS; ++i) {
         Node *modelNode = jacks->CreateChild("Jill");
+        modelNode->AddTag("Enemy");
         modelNode->SetPosition(Vector3(Random(40.0f) - 20.0f, 0.0f, Random(40.0f) - 20.0f));
         modelNode->SetRotation(Quaternion(0.0f, Random(360.0f), 0.0f));
 
@@ -155,11 +112,12 @@ void gs_playing::addEnemies() {
         agent->SetMaxAccel(5.0f);
 
         modelNode->CreateComponent<AnimationController>();
+        Zombie* zombieComponent = modelNode->CreateComponent<Zombie>();
     }
 }
 
 void gs_playing::addPlayer() {
-    cameraNode_ = globals::instance()->scene->CreateChild("Camera");
+    cameraNode_ = globals::instance()->scene->GetChild("Camera");
     cameraNode_->SetPosition(Vector3(0,2,0));
     Camera *camera = cameraNode_->CreateComponent<Camera>();
     camera->SetFarClip(2000);
@@ -176,6 +134,9 @@ void gs_playing::addPlayer() {
     ResourceCache *cache = globals::instance()->cache;
 
     playerNode = cameraNode_ -> CreateChild("Player");
+
+    playerNode->CreateComponent<LogicComponent>();
+
     RigidBody *body = playerNode->CreateComponent<RigidBody>();
     body->SetCollisionLayer(1);
     body->SetMass(0.01f);
@@ -225,7 +186,8 @@ void gs_playing::HandleUpdate(StringHash eventType,VariantMap& eventData) {
         static float yaw_ = 0;
         static float pitch_ = 0;
         yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
-        pitch_ = Clamp(pitch_, -90.0f, 90.0f);
+//        pitch_ = Clamp(pitch_, -90.0f, 90.0f);
+        pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
         cameraNode_->SetDirection(Vector3::FORWARD);
         playerNode->SetDirection(Vector3::FORWARD);
         cameraNode_->Yaw(yaw_);
@@ -305,4 +267,63 @@ void gs_playing::UpdateEnemyDestination() {
     Vector3 pathPos = navMesh->FindNearestPoint(hitPos, Vector3(1.0f, 1.0f, 1.0f));
     Node* jackGroup = globals::instance()->scene->GetChild("Jacks");
     globals::instance()->scene->GetComponent<CrowdManager>()->SetCrowdTarget(pathPos, jackGroup);
+}
+
+void gs_playing::HandleMouseDown(StringHash eventType, VariantMap &eventData) {
+    using namespace MouseButtonDown;
+    int key = eventData[P_BUTTON].GetInt();
+
+    if(key == MOUSEB_LEFT) {
+        Shoot();
+    }
+}
+
+void gs_playing::Shoot() {
+    URHO3D_LOGINFO("shoot");
+
+    PlayShootingSound();
+
+    Graphics* graphics = GetSubsystem<Graphics>();
+    Camera* camera = globals::instance()->cameraNode->GetComponent<Camera>();
+    Ray cameraRay = camera->GetScreenRay((float) graphics->GetWidth()/2/graphics->GetWidth(), (float)graphics->GetHeight()/2/graphics->GetHeight());
+
+    PODVector<RayQueryResult> results;
+    RayOctreeQuery query(results, cameraRay, RAY_TRIANGLE, M_INFINITY, DRAWABLE_GEOMETRY);
+    globals::instance()->scene->GetComponent<Octree>()->Raycast(query);
+
+    if (results.Size())
+    {
+        RayQueryResult& result = results[0];
+
+        if(result.node_->HasTag("Enemy")) {
+
+            if(result.node_->HasComponent<Zombie>()) {
+                result.node_->GetComponent<Zombie>()->GotHit();
+            }
+        }
+    }
+}
+
+void gs_playing::PlayShootingSound() {
+    const String& soundResourceName = "assets/Music/shoot.wav";
+
+    Sound* sound = globals::instance()->cache->GetResource<Sound>(soundResourceName);
+
+    if (sound)
+    {
+        SoundSource* soundSource = globals::instance()->scene->CreateComponent<SoundSource>();
+        soundSource->SetAutoRemoveMode(REMOVE_COMPONENT);
+        soundSource->Play(sound);
+        soundSource->SetGain(0.75f);
+    }
+}
+
+void gs_playing::initSight() {
+    BorderImage *aimView = new BorderImage(globals::instance()->context);
+
+    aimView->SetTexture(globals::instance()->cache->GetResource<Texture>("Textures/aim.png"));
+    aimView->SetAlignment(HA_CENTER, VA_CENTER);
+    aimView->SetSize(128, 128);
+
+    GetSubsystem<UI>()->GetRoot()->AddChild(aimView);
 }

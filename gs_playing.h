@@ -87,9 +87,10 @@
 #include <Urho3D/Navigation/OffMeshConnection.h>
 #include "Urho3D/IO/Log.h"
 
-#include "gs_main_menu.h"
-//#include "gs_playing.h"
 #include "Player.h"
+#include "Zombie.h"
+
+#include "gs_main_menu.h"
 
 class player;
 class gs_playing;
@@ -114,10 +115,14 @@ public:
     void HandlePostRenderUpdate(Urho3D::StringHash eventType, Urho3D::VariantMap& eventData);
     void HandleUpdate(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleKeyDown(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+    void HandleMouseDown(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleCrowdAgentReposition(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void subscribeToEvents();
     void initNavigation();
     void UpdateEnemyDestination();
+    void Shoot();
+    void PlayShootingSound();
+    void initSight();
 
     virtual const Urho3D::String& GetTypeName() const {static Urho3D::String name("gs_playing");return name;}
 };

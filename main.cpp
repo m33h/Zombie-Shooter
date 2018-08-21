@@ -51,8 +51,6 @@
 #include <Urho3D/Audio/SoundSource.h>
 #include <Bullet/LinearMath/btIDebugDraw.h>
 
-#include "Player.h"
-#include "Zombie.h"
 #include "gs_main_menu.h"
 #include "gs_playing.h"
 
@@ -78,6 +76,7 @@ class Main : public Application
     Main(Context *context) : Application(context), framecount_(0), time_(0), context(context) {
         Player::RegisterObject(context);
         Zombie::RegisterObject(context);
+        URHO3D_LOGINFO("init main");
     }
 
     virtual void Setup() {
@@ -92,8 +91,6 @@ class Main : public Application
         GetSubsystem<UI>()->GetRoot()->SetDefaultStyle(cache->GetResource<XMLFile>("UI/DefaultStyle.xml"));
 
         GetSubsystem<UI>()->GetRoot()->AddChild(text_);
-
-        initSight();
 
         scene_ = new Scene(context_);
         XMLFile *sceneFile = cache->GetResource<XMLFile>("assets/scenes/mainScene.xml");
@@ -126,28 +123,6 @@ class Main : public Application
         globals::instance()->game_states.emplace_back(new gs_playing);
     }
 
-    void initSight() {
-        ResourceCache *cache = GetSubsystem<ResourceCache>();
-
-        BorderImage *aimView = new BorderImage(context);
-
-        aimView->SetTexture(cache->GetResource<Texture2D>("Textures/aim.png"));
-        aimView->SetAlignment(HA_CENTER, VA_CENTER);
-        aimView->SetSize(128, 128);
-
-        GetSubsystem<UI>()->GetRoot()->AddChild(aimView);
-    }
-
-    void HandleMouseDown(StringHash eventType, VariantMap &eventData) {
-
-        using namespace MouseButtonDown;
-        int key = eventData[P_BUTTON].GetInt();
-
-        if(key == MOUSEB_LEFT) {
-            Shoot();
-        }
-    }
-
     void subscribeToEvents() {
         SubscribeToEvent(E_KEYDOWN, URHO3D_HANDLER(Main, HandleKeyDown));
     }
@@ -165,45 +140,6 @@ class Main : public Application
         }
     }
 
-    void Shoot() {
-
-        PlayShootingSound();
-
-        Graphics* graphics = GetSubsystem<Graphics>();
-        Camera* camera = cameraNode_->GetComponent<Camera>();
-        Ray cameraRay = camera->GetScreenRay((float) graphics->GetWidth()/2/graphics->GetWidth(), (float)graphics->GetHeight()/2/graphics->GetHeight());
-
-        PODVector<RayQueryResult> results;
-        RayOctreeQuery query(results, cameraRay, RAY_TRIANGLE, M_INFINITY, DRAWABLE_GEOMETRY);
-        scene_->GetComponent<Octree>()->Raycast(query);
-
-        if (results.Size())
-        {
-            RayQueryResult& result = results[0];
-
-            if(result.node_->HasTag("Enemy")) {
-                if(result.node_->HasComponent<Zombie>()) {
-                   result.node_->GetComponent<Zombie>()->GotHit();
-                }
-            }
-        }
-    }
-
-    void PlayShootingSound() {
-        const String& soundResourceName = "assets/Music/shoot.wav";
-
-        // Get the sound resource
-        ResourceCache* cache = GetSubsystem<ResourceCache>();
-        Sound* sound = cache->GetResource<Sound>(soundResourceName);
-
-        if (sound)
-        {
-            SoundSource* soundSource = scene_->CreateComponent<SoundSource>();
-            soundSource->SetAutoRemoveMode(REMOVE_COMPONENT);
-            soundSource->Play(sound);
-            soundSource->SetGain(0.75f);
-        }
-    }
     void HandleUpdate(StringHash eventType,VariantMap& eventData) {}
     void HandleBeginFrame(StringHash eventType, VariantMap& eventData) {}
     void HandleRenderUpdate(StringHash eventType, VariantMap & eventData) {}
