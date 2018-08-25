@@ -95,27 +95,18 @@ class Main : public Application
         scene_ = new Scene(context_);
         XMLFile *sceneFile = cache->GetResource<XMLFile>("assets/scenes/mainScene.xml");
         scene_->LoadXML(sceneFile->GetRoot());
-
         scene_->CreateComponent<Octree>();
         scene_->CreateComponent<DebugRenderer>();
 
-        cameraNode_ = scene_->CreateChild("Camera");
-        cameraNode_->SetPosition(Vector3(0, 2, 0));
-        Camera *camera = cameraNode_->CreateComponent<Camera>();
-        camera->SetFarClip(2000);
-
-        Renderer *renderer = GetSubsystem<Renderer>();
-        SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
-        renderer->SetViewport(0, viewport);
-
+        playerNode = scene_->CreateChild("Player");
+        playerNode->CreateComponent<LogicComponent>();
+        playerNode->CreateComponent<RigidBody>();
         pw = scene_->GetComponent<PhysicsWorld>();
 
         subscribeToEvents();
 
         globals::instance()->playerNode=playerNode;
-        globals::instance()->cameraNode=cameraNode_;
         globals::instance()->cache=cache;
-        globals::instance()->camera=camera;
         globals::instance()->scene=scene_;
         globals::instance()->context=context_;
         globals::instance()->ui_root=GetSubsystem<UI>()->GetRoot();

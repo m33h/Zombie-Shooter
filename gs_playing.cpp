@@ -117,9 +117,12 @@ void gs_playing::addEnemies() {
 }
 
 void gs_playing::addPlayer() {
-    cameraNode_ = globals::instance()->scene->GetChild("Camera");
-    cameraNode_->SetPosition(Vector3(0,2,0));
+    playerNode = globals::instance()->playerNode;
+    cameraNode_ = playerNode->CreateChild("Camera");
+    globals::instance()->cameraNode=cameraNode_;
+    cameraNode_->SetPosition(Vector3(0,3,0));
     Camera *camera = cameraNode_->CreateComponent<Camera>();
+    globals::instance()->camera=camera;
     camera->SetFarClip(2000);
 
     Renderer *renderer = GetSubsystem<Renderer>();
@@ -133,24 +136,12 @@ void gs_playing::addPlayer() {
     renderer->SetViewport(0, viewport);
     ResourceCache *cache = globals::instance()->cache;
 
-    playerNode = cameraNode_ -> CreateChild("Player");
-
-    playerNode->CreateComponent<LogicComponent>();
-
-    RigidBody *body = playerNode->CreateComponent<RigidBody>();
-    body->SetCollisionLayer(1);
-    body->SetMass(0.01f);
-    body->SetRollingFriction(0.15f);
-    body->SetAngularFactor(Vector3::ZERO);
-
     CollisionShape *shape = playerNode->CreateComponent<CollisionShape>();
     shape->SetCapsule(0.7f, 1.8f, Vector3(0.0f, 0.9f, 0.0f));
     AnimatedModel *modelObject = playerNode->CreateComponent<AnimatedModel>();
     modelObject->SetModel(cache->GetResource<Model>("Models/Kachujin/Kachujin.mdl"));
     modelObject->SetMaterial(cache->GetResource<Material>("Models/Kachujin/Materials/Kachujin.xml"));
     modelObject->SetCastShadows(true);
-
-    playerNode->CreateComponent<AnimationController>();
 }
 
 void gs_playing::HandleUpdate(StringHash eventType,VariantMap& eventData) {
@@ -163,20 +154,6 @@ void gs_playing::HandleUpdate(StringHash eventType,VariantMap& eventData) {
 
     Input *input = GetSubsystem<Input>();
 
-    if (input->GetKeyDown('W')){
-        cameraNode_->Translate(Vector3(0, 0, 1) * MOVE_SPEED * timeStep);
-    }
-    if (input->GetKeyDown('S')){
-        cameraNode_->Translate(Vector3(0, 0, -1) * MOVE_SPEED * timeStep);
-    }
-    if (input->GetKeyDown('A')) {
-        cameraNode_->Translate(Vector3(-1, 0, 0) * MOVE_SPEED * timeStep);
-    }
-    if (input->GetKeyDown('D')) {
-        cameraNode_->Translate(Vector3(1, 0, 0) * MOVE_SPEED * timeStep);
-    }
-
-
     if((int)time_ % 3 == 0 ) {
         gs_playing::UpdateEnemyDestination();
     }
@@ -186,14 +163,21 @@ void gs_playing::HandleUpdate(StringHash eventType,VariantMap& eventData) {
         static float yaw_ = 0;
         static float pitch_ = 0;
         yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
-//        pitch_ = Clamp(pitch_, -90.0f, 90.0f);
         pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
         cameraNode_->SetDirection(Vector3::FORWARD);
-        playerNode->SetDirection(Vector3::FORWARD);
+        playerNode->SetDirection(cameraNode_->GetDirection());
         cameraNode_->Yaw(yaw_);
-        playerNode->Yaw(yaw_);
         cameraNode_->Pitch(pitch_);
-        playerNode->Pitch(pitch_);
+        Vector3 cameraDirVector = cameraNode_->GetDirection();
+
+        if (input->GetKeyDown('W'))
+            playerNode->Translate(Vector3(cameraDirVector.x_, 0, cameraDirVector.z_) * MOVE_SPEED * timeStep);
+        if (input->GetKeyDown('S'))
+            playerNode->Translate(-1 * Vector3(cameraDirVector.x_, 0, cameraDirVector.z_) * MOVE_SPEED * timeStep);
+        if (input->GetKeyDown('A'))
+            playerNode->Translate(cameraDirVector.CrossProduct(Vector3(0,1,0)) * MOVE_SPEED * timeStep);
+        if (input->GetKeyDown('D'))
+            playerNode->Translate(-1 * cameraDirVector.CrossProduct(Vector3(0,1,0)) * MOVE_SPEED * timeStep);
     }
 }
 
@@ -260,7 +244,7 @@ void gs_playing::initNavigation() {
 void gs_playing::UpdateEnemyDestination() {
 //    URHO3D_LOGINFO("update enemy destination");
 
-    Vector3 hitPos = cameraNode_->GetPosition();
+    Vector3 hitPos = playerNode->GetPosition();
     hitPos.y_ = 0;
 
     NavigationMesh *navMesh = globals::instance()->scene->GetComponent<NavigationMesh>();
