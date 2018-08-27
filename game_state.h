@@ -32,6 +32,7 @@ public:
     Urho3D::Engine* engine=0;
     Urho3D::PhysicsWorld* physical_world=0;
     bool toggleMenu=false;
+    int killedZombiesCount=0;
 
     /// The current game states, so that game states can switch to another game state.
     /// Watch out that changing a game state will delete the current one.

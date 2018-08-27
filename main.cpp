@@ -50,6 +50,7 @@
 #include <Urho3D/Audio/Sound.h>
 #include <Urho3D/Audio/SoundSource.h>
 #include <Bullet/LinearMath/btIDebugDraw.h>
+#include <Urho3D/UI/Sprite.h>
 
 #include "gs_main_menu.h"
 #include "gs_playing.h"
@@ -99,7 +100,7 @@ class Main : public Application
         scene_->CreateComponent<DebugRenderer>();
 
         playerNode = scene_->CreateChild("Player");
-        playerNode->CreateComponent<LogicComponent>();
+        playerNode->CreateComponent<Player>();
         playerNode->CreateComponent<RigidBody>();
         pw = scene_->GetComponent<PhysicsWorld>();
 

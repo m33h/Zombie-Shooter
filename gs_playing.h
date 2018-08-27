@@ -97,6 +97,24 @@ class gs_playing;
 
 class gs_playing : public game_state
 {
+
+    void initUi();
+    void initShootingAim();
+    void initKilledZombieUiElement();
+    void initPlayerHealthUiElement();
+    void updateKilledZombiesUiElement();
+    void updatePlayerHealthUiElement();
+
+    void addPlayer();
+    void addEnemies();
+
+    void initNavigation();
+    void subscribeToEvents();
+    void UpdateEnemyDestination();
+    void Shoot();
+    void PlayShootingSound();
+    Node* FindPlayerNode();
+
 public:
     Urho3D::Text* window_text;
     double timer_playing=0;
@@ -110,19 +128,13 @@ public:
     Urho3D::Node* playerNode;
     gs_playing();
 
-    void addPlayer();
-    void addEnemies();
     void HandlePostRenderUpdate(Urho3D::StringHash eventType, Urho3D::VariantMap& eventData);
     void HandleUpdate(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleKeyDown(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleMouseDown(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleCrowdAgentReposition(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
-    void subscribeToEvents();
-    void initNavigation();
-    void UpdateEnemyDestination();
-    void Shoot();
-    void PlayShootingSound();
-    void initSight();
+    void HandleZombieKilled(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+    void HandlePlayerWounded(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
 
     virtual const Urho3D::String& GetTypeName() const {static Urho3D::String name("gs_playing");return name;}
 };

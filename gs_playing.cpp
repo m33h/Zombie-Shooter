@@ -17,6 +17,7 @@
 #include <Urho3D/Scene/Scene.h>
 #include <Urho3D/Scene/SceneEvents.h>
 #include <Urho3D/Graphics/Graphics.h>
+#include <Urho3D/Graphics/Texture2D.h>
 #include <Urho3D/Graphics/Camera.h>
 #include <Urho3D/Graphics/Geometry.h>
 #include <Urho3D/Graphics/Renderer.h>
@@ -43,6 +44,7 @@
 #include <Urho3D/Navigation/OffMeshConnection.h>
 #include "Urho3D/IO/Log.h"
 #include <Urho3D/Scene/Node.h>
+#include <Urho3D/UI/Sprite.h>
 
 #include "gs_playing.h"
 #include "gs_main_menu.h"
@@ -50,13 +52,16 @@
 #define NUM_MODELS 50
 
 using namespace Urho3D;
+using namespace std;
 
 gs_playing::gs_playing() : game_state() {
+    initUi();
     addPlayer();
-    initSight();
     addEnemies();
     initNavigation();
     subscribeToEvents();
+    updatePlayerHealthUiElement();
+    updateKilledZombiesUiElement();
 }
 
 void gs_playing::subscribeToEvents() {
@@ -67,6 +72,8 @@ void gs_playing::subscribeToEvents() {
     SubscribeToEvent(E_POSTRENDERUPDATE, URHO3D_HANDLER(gs_playing, HandlePostRenderUpdate));
     SubscribeToEvent(E_CROWD_AGENT_REPOSITION, URHO3D_HANDLER(gs_playing, HandleCrowdAgentReposition));
     SubscribeToEvent(E_MOUSEBUTTONDOWN, URHO3D_HANDLER(gs_playing, HandleMouseDown));
+    SubscribeToEvent("ZOMBIE_KILLED", URHO3D_HANDLER(gs_playing, HandleZombieKilled));
+    SubscribeToEvent("PLAYER_WOUNDED", URHO3D_HANDLER(gs_playing, HandlePlayerWounded));
 }
 
 void gs_playing::HandleKeyDown(StringHash eventType, VariantMap &eventData) {
@@ -77,6 +84,15 @@ void gs_playing::HandleKeyDown(StringHash eventType, VariantMap &eventData) {
         globals::instance()->toggleMenu = !globals::instance()->toggleMenu;
         globals::instance()->game_states.emplace_back(new gs_main_menu);
     }
+}
+
+void gs_playing::HandleZombieKilled(Urho3D::StringHash eventType, Urho3D::VariantMap &eventData) {
+    globals::instance()->killedZombiesCount++;
+    updateKilledZombiesUiElement();
+}
+
+void gs_playing::HandlePlayerWounded(Urho3D::StringHash eventType, Urho3D::VariantMap &eventData) {
+    updatePlayerHealthUiElement();
 }
 
 void gs_playing::addEnemies() {
@@ -112,7 +128,7 @@ void gs_playing::addEnemies() {
         agent->SetMaxAccel(5.0f);
 
         modelNode->CreateComponent<AnimationController>();
-        Zombie* zombieComponent = modelNode->CreateComponent<Zombie>();
+        modelNode->CreateComponent<Zombie>();
     }
 }
 
@@ -183,9 +199,9 @@ void gs_playing::HandleUpdate(StringHash eventType,VariantMap& eventData) {
 
 void gs_playing::HandlePostRenderUpdate(StringHash eventType, VariantMap & eventData){
     // Visualize navigation mesh, obstacles and off-mesh connections
-    globals::instance()->scene->GetComponent<NavigationMesh>()->DrawDebugGeometry(true);
+   // globals::instance()->scene->GetComponent<NavigationMesh>()->DrawDebugGeometry(true);
     // Visualize agents' path and position to reach
-    globals::instance()->scene->GetComponent<CrowdManager>()->DrawDebugGeometry(true);
+    //globals::instance()->scene->GetComponent<CrowdManager>()->DrawDebugGeometry(true);
 }
 
 
@@ -236,8 +252,6 @@ void gs_playing::initNavigation() {
     navMesh->SetCellHeight(0.05f);
     navMesh->SetPadding(Vector3(0.0f, 10.0f, 0.0f));
     navMesh->Build();
-    //CreateBoxOffMeshConnections(navMesh);
-
     gs_playing::UpdateEnemyDestination();
 }
 
@@ -302,12 +316,112 @@ void gs_playing::PlayShootingSound() {
     }
 }
 
-void gs_playing::initSight() {
+void gs_playing::initShootingAim() {
     BorderImage *aimView = new BorderImage(globals::instance()->context);
-
-    aimView->SetTexture(globals::instance()->cache->GetResource<Texture>("Textures/aim.png"));
     aimView->SetAlignment(HA_CENTER, VA_CENTER);
     aimView->SetSize(128, 128);
-
+    aimView->SetTexture(globals::instance()->cache->GetResource<Texture2D>("assets/Textures/aim.png"));
     GetSubsystem<UI>()->GetRoot()->AddChild(aimView);
+}
+
+void gs_playing::initUi() {
+    initShootingAim();
+    initKilledZombieUiElement();
+    initPlayerHealthUiElement();
+}
+
+void gs_playing::initKilledZombieUiElement() {
+    UIElement* root = GetSubsystem<UI>()->GetRoot();
+    ResourceCache* cache = GetSubsystem<ResourceCache>();
+
+    UIElement* zombieCountUiGroup = new UIElement(context_);
+    zombieCountUiGroup->SetLayout(LM_HORIZONTAL);
+    zombieCountUiGroup->SetVerticalAlignment(VA_TOP);
+    zombieCountUiGroup->SetHorizontalAlignment(HA_RIGHT);
+    zombieCountUiGroup->SetMinSize(200, 100);
+
+    BorderImage* skullImage = new BorderImage(context_);
+    skullImage->SetName("ivSkullImage");
+    skullImage->SetTexture(cache->GetResource<Texture2D>("assets/Textures/skull_white.png")); // Set texture
+    skullImage->SetBlendMode(BLEND_ADD);
+    skullImage->SetHorizontalAlignment(HA_RIGHT);
+    skullImage->SetVerticalAlignment(VA_CENTER);
+    skullImage->SetSize(92, 92);
+
+    Text* killedZombiesText = new Text(context_);
+    killedZombiesText->SetName("tvKilledZombieCount");
+    killedZombiesText->SetText("0");
+    killedZombiesText->SetStyleAuto();
+    killedZombiesText->SetColor(Color(1,0,0));
+    killedZombiesText->SetFont(cache->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"), 48);
+    killedZombiesText->SetHorizontalAlignment(HA_CENTER);
+    killedZombiesText->SetVerticalAlignment(VA_CENTER);
+
+    zombieCountUiGroup->AddChild(killedZombiesText);
+    zombieCountUiGroup->AddChild(skullImage);
+    root->AddChild(zombieCountUiGroup);
+}
+
+void gs_playing::initPlayerHealthUiElement() {
+    UIElement* root = GetSubsystem<UI>()->GetRoot();
+    ResourceCache* cache = GetSubsystem<ResourceCache>();
+
+    UIElement* playerHealthUiGroup = new UIElement(context_);
+    playerHealthUiGroup->SetLayout(LM_HORIZONTAL);
+    playerHealthUiGroup->SetVerticalAlignment(VA_TOP);
+    playerHealthUiGroup->SetHorizontalAlignment(HA_LEFT);
+    playerHealthUiGroup->SetMinSize(200, 100);
+
+    BorderImage* heartImage = new BorderImage(context_);
+    heartImage->SetName("ivHearthImage");
+    heartImage->SetTexture(cache->GetResource<Texture2D>("assets/Textures/heart.png")); // Set texture
+    heartImage->SetBlendMode(BLEND_REPLACE);
+    heartImage->SetHorizontalAlignment(HA_LEFT);
+    heartImage->SetVerticalAlignment(VA_CENTER);
+    heartImage->SetSize(92, 92);
+
+    Text* playerHealthText = new Text(context_);
+    playerHealthText->SetName("tvPlayerHealth");
+    playerHealthText->SetColor(Color(0,1,0));
+    playerHealthText->SetStyleAuto();
+    playerHealthText->SetFont(cache->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"), 48);
+    playerHealthText->SetHorizontalAlignment(HA_RIGHT);
+    playerHealthText->SetVerticalAlignment(VA_CENTER);
+
+    playerHealthUiGroup->AddChild(heartImage);
+    playerHealthUiGroup->AddChild(playerHealthText);
+    root->AddChild(playerHealthUiGroup);
+}
+
+void gs_playing::updatePlayerHealthUiElement() {
+    UIElement* root = GetSubsystem<UI>()->GetRoot();
+
+    Text* tvPlayerHealth = dynamic_cast<Text *>(root->GetChild("tvPlayerHealth", true));
+
+    Node* playerNode = FindPlayerNode();
+
+    if(playerNode) {
+        int playerHpPercentage = playerNode->GetComponent<Player>()->GetHealthPoints();
+
+        if (playerHpPercentage < 30) {
+            tvPlayerHealth->SetColor(Color(1,0,0));
+        } else if (playerHpPercentage < 60) {
+            tvPlayerHealth->SetColor(Color(1,1,0));
+        } else {
+            tvPlayerHealth->SetColor(Color(0,1,0));
+        }
+
+        tvPlayerHealth->SetText(String(playerHpPercentage));
+    }
+}
+
+void gs_playing::updateKilledZombiesUiElement() {
+    UIElement* root = GetSubsystem<UI>()->GetRoot();
+    Text* tvKilledZombieCount = dynamic_cast<Text *>(root->GetChild("tvKilledZombieCount", true));
+    int killedZombiesCount = globals::instance()->killedZombiesCount;
+    tvKilledZombieCount->SetText(String(killedZombiesCount));
+}
+
+Node *gs_playing::FindPlayerNode() {
+    return globals::instance()->scene->GetChild("Player", true);
 }

@@ -24,6 +24,7 @@ void Zombie::GotHit() {
 
     if (hitCount <=0) {
         showZombieDies();
+        SendEvent("ZOMBIE_KILLED");
         node_->Remove();
     } else {
         showZombieGotHit();
