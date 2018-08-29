@@ -6,18 +6,18 @@
 using namespace Urho3D;
 
 class Player : public GameObject {
-        int healthPoints;
         URHO3D_OBJECT(Player, GameObject);
-
+        int healthPoints;
+        bool isPlayerAlive();
         void SubscribeToEvents();
-    public:
+        void PlayUserDieSound();
+public:
         Player(Context *context);
         ~Player();
         static void RegisterObject(Context* context);
-
+        virtual void Start();
         int GetHealthPoints() { return healthPoints; }
-        void SetControls(const Controls& newControls);
-        virtual void HandleUpdate(Urho3D::StringHash eventType, Urho3D::VariantMap& eventData);
+        void HandleUpdate(Urho3D::StringHash eventType, Urho3D::VariantMap& eventData);
         void HandleCollision(StringHash eventType, VariantMap& eventData);
-        Controls controls;
+
 };

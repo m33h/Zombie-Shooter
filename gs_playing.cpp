@@ -49,7 +49,7 @@
 #include "gs_playing.h"
 #include "gs_main_menu.h"
 
-#define NUM_MODELS 50
+#define NUM_MODELS 20
 
 using namespace Urho3D;
 using namespace std;
@@ -154,6 +154,13 @@ void gs_playing::addPlayer() {
 
     CollisionShape *shape = playerNode->CreateComponent<CollisionShape>();
     shape->SetCapsule(0.7f, 1.8f, Vector3(0.0f, 0.9f, 0.0f));
+
+    RigidBody *body = playerNode->CreateComponent<RigidBody>();
+    body->SetCollisionLayer(1);
+    body->SetMass(0.01f);
+    body->SetRollingFriction(0.15f);
+    body->SetAngularFactor(Vector3::ZERO);
+
     AnimatedModel *modelObject = playerNode->CreateComponent<AnimatedModel>();
     modelObject->SetModel(cache->GetResource<Model>("Models/Kachujin/Kachujin.mdl"));
     modelObject->SetMaterial(cache->GetResource<Material>("Models/Kachujin/Materials/Kachujin.xml"));

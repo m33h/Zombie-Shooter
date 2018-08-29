@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string>
 #include <sstream>
-
 #include <Urho3D/Core/CoreEvents.h>
 #include <Urho3D/Engine/Application.h>
 #include <Urho3D/Engine/Engine.h>
@@ -57,8 +56,6 @@
 
 using namespace Urho3D;
 
-#define NUM_MODELS 50
-
 
 class Main : public Application
 {
@@ -72,7 +69,6 @@ class Main : public Application
         SharedPtr<Node> cameraNode_;
         SharedPtr<Node> playerNode;
         Context* context;
-        PhysicsWorld* pw;
 
     Main(Context *context) : Application(context), framecount_(0), time_(0), context(context) {
         Player::RegisterObject(context);
@@ -101,8 +97,6 @@ class Main : public Application
 
         playerNode = scene_->CreateChild("Player");
         playerNode->CreateComponent<Player>();
-        playerNode->CreateComponent<RigidBody>();
-        pw = scene_->GetComponent<PhysicsWorld>();
 
         subscribeToEvents();
 
