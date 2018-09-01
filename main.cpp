@@ -97,7 +97,12 @@ class Main : public Application
 
         playerNode = scene_->CreateChild("Player");
         playerNode->CreateComponent<Player>();
-
+        cameraNode_ = playerNode->CreateChild("Camera");
+        globals::instance()->cameraNode=cameraNode_;
+        cameraNode_->SetPosition(Vector3(0,3,0));
+        Camera *camera = cameraNode_->CreateComponent<Camera>();
+        globals::instance()->camera=camera;
+        camera->SetFarClip(2000);
         subscribeToEvents();
 
         globals::instance()->playerNode=playerNode;
@@ -106,7 +111,7 @@ class Main : public Application
         globals::instance()->context=context_;
         globals::instance()->ui_root=GetSubsystem<UI>()->GetRoot();
         globals::instance()->engine=engine_;
-        globals::instance()->game_states.emplace_back(new gs_playing);
+        globals::instance()->game_states.emplace_back(new gs_main_menu);
     }
 
     void subscribeToEvents() {

@@ -43,6 +43,7 @@
 #include <Urho3D/Navigation/Obstacle.h>
 #include <Urho3D/Navigation/OffMeshConnection.h>
 #include "Urho3D/IO/Log.h"
+#include "Urho3D/Core/Object.h"
 #include <Urho3D/Scene/Node.h>
 #include <Urho3D/UI/Sprite.h>
 
@@ -55,6 +56,8 @@ using namespace Urho3D;
 using namespace std;
 
 gs_playing::gs_playing() : game_state() {
+    SharedPtr<Scene> scene_;
+
     initUi();
     addPlayer();
     addEnemies();
@@ -72,6 +75,7 @@ void gs_playing::subscribeToEvents() {
     SubscribeToEvent(E_POSTRENDERUPDATE, URHO3D_HANDLER(gs_playing, HandlePostRenderUpdate));
     SubscribeToEvent(E_CROWD_AGENT_REPOSITION, URHO3D_HANDLER(gs_playing, HandleCrowdAgentReposition));
     SubscribeToEvent(E_MOUSEBUTTONDOWN, URHO3D_HANDLER(gs_playing, HandleMouseDown));
+    SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(gs_playing, HandlePlayerCollision));
     SubscribeToEvent("ZOMBIE_KILLED", URHO3D_HANDLER(gs_playing, HandleZombieKilled));
     SubscribeToEvent("PLAYER_WOUNDED", URHO3D_HANDLER(gs_playing, HandlePlayerWounded));
 }
@@ -81,7 +85,7 @@ void gs_playing::HandleKeyDown(StringHash eventType, VariantMap &eventData) {
     int key = eventData[P_KEY].GetInt();
     if (key == KEY_ESCAPE) {
         GetSubsystem<Input>()->SetMouseVisible(!GetSubsystem<Input>()->IsMouseVisible());
-        globals::instance()->toggleMenu = !globals::instance()->toggleMenu;
+        globals::instance()->toggleMenu = true;
         globals::instance()->game_states.emplace_back(new gs_main_menu);
     }
 }
@@ -93,6 +97,8 @@ void gs_playing::HandleZombieKilled(Urho3D::StringHash eventType, Urho3D::Varian
 
 void gs_playing::HandlePlayerWounded(Urho3D::StringHash eventType, Urho3D::VariantMap &eventData) {
     updatePlayerHealthUiElement();
+    playerWoundedSound();
+    redFlashScreenEffect();
 }
 
 void gs_playing::addEnemies() {
@@ -106,7 +112,7 @@ void gs_playing::addEnemies() {
         Node *modelNode = jacks->CreateChild("Jill");
         modelNode->AddTag("Enemy");
         modelNode->SetPosition(Vector3(Random(40.0f) - 20.0f, 0.0f, Random(40.0f) - 20.0f));
-        modelNode->SetRotation(Quaternion(0.0f, Random(360.0f), 0.0f));
+        modelNode->SetRotation(Quaternion(0.0f, Random(180.0f), 0.0f));
 
         RigidBody *body = modelNode->CreateComponent<RigidBody>();
         body->SetCollisionLayer(1);
@@ -118,8 +124,8 @@ void gs_playing::addEnemies() {
         shape->SetCapsule(0.7f, 1.8f, Vector3(0.0f, 0.9f, 0.0f));
 
         AnimatedModel *modelObject = modelNode->CreateComponent<AnimatedModel>();
-        modelObject->SetModel(globals::instance()->cache->GetResource<Model>("Models/Kachujin/Kachujin.mdl"));
-        modelObject->SetMaterial(globals::instance()->cache->GetResource<Material>("Models/Kachujin/Materials/Kachujin.xml"));
+        modelObject->SetModel(globals::instance()->cache->GetResource<Model>("Models/Mutant/Mutant.mdl"));
+        modelObject->SetMaterial(globals::instance()->cache->GetResource<Material>("Models/Mutant/Materials/mutant_M.xml"));
         modelObject->SetCastShadows(true);
 
         CrowdAgent* agent = modelNode->CreateComponent<CrowdAgent>();
@@ -134,11 +140,11 @@ void gs_playing::addEnemies() {
 
 void gs_playing::addPlayer() {
     playerNode = globals::instance()->playerNode;
-    cameraNode_ = playerNode->CreateChild("Camera");
+    playerNode->SetPosition(Vector3(0,0,0));
+    cameraNode_ = globals::instance()->cameraNode;
     globals::instance()->cameraNode=cameraNode_;
     cameraNode_->SetPosition(Vector3(0,3,0));
-    Camera *camera = cameraNode_->CreateComponent<Camera>();
-    globals::instance()->camera=camera;
+    Camera *camera = globals::instance()->camera;
     camera->SetFarClip(2000);
 
     Renderer *renderer = GetSubsystem<Renderer>();
@@ -146,7 +152,7 @@ void gs_playing::addPlayer() {
             new Viewport(
                     globals::instance()->context,
                     globals::instance()->scene,
-                    cameraNode_->GetComponent<Camera>()
+                    globals::instance()->camera
             )
     );
     renderer->SetViewport(0, viewport);
@@ -213,7 +219,7 @@ void gs_playing::HandlePostRenderUpdate(StringHash eventType, VariantMap & event
 
 
 void gs_playing::HandleCrowdAgentReposition(StringHash eventType, VariantMap& eventData) {
-    static const char *WALKING_ANI = "Models/Kachujin/Kachujin_Walk.ani";
+    static const char *WALKING_ANI = "Models/Mutant/Mutant_Walk.ani";
 
     using namespace CrowdAgentReposition;
 
@@ -229,7 +235,7 @@ void gs_playing::HandleCrowdAgentReposition(StringHash eventType, VariantMap& ev
         if (animCtrl->IsPlaying(WALKING_ANI)) {
             float speedRatio = speed / agent->GetMaxSpeed();
             // Face the direction of its velocity but moderate the turning speed based on the speed ratio and timeStep
-            node->SetRotation(node->GetRotation().Slerp(Quaternion(Vector3::FORWARD, velocity),
+            node->SetRotation(node->GetRotation().Slerp(Quaternion(Vector3::BACK, velocity),
                                                         10.0f * timeStep * speedRatio));
             // Throttle the animation speed based on agent speed ratio (ratio = 1 is full throttle)
             animCtrl->SetSpeed(WALKING_ANI, speedRatio * 1.5f);
@@ -264,14 +270,15 @@ void gs_playing::initNavigation() {
 
 void gs_playing::UpdateEnemyDestination() {
 //    URHO3D_LOGINFO("update enemy destination");
+    if(!globals::instance()->toggleMenu){
+        Vector3 hitPos = playerNode->GetPosition();
+        hitPos.y_ = 0;
 
-    Vector3 hitPos = playerNode->GetPosition();
-    hitPos.y_ = 0;
-
-    NavigationMesh *navMesh = globals::instance()->scene->GetComponent<NavigationMesh>();
-    Vector3 pathPos = navMesh->FindNearestPoint(hitPos, Vector3(1.0f, 1.0f, 1.0f));
-    Node* jackGroup = globals::instance()->scene->GetChild("Jacks");
-    globals::instance()->scene->GetComponent<CrowdManager>()->SetCrowdTarget(pathPos, jackGroup);
+        NavigationMesh *navMesh = globals::instance()->scene->GetComponent<NavigationMesh>();
+        Vector3 pathPos = navMesh->FindNearestPoint(hitPos, Vector3(1.0f, 1.0f, 1.0f));
+        Node* jackGroup = globals::instance()->scene->GetChild("Jacks");
+        globals::instance()->scene->GetComponent<CrowdManager>()->SetCrowdTarget(pathPos, jackGroup);
+    }
 }
 
 void gs_playing::HandleMouseDown(StringHash eventType, VariantMap &eventData) {
@@ -284,8 +291,6 @@ void gs_playing::HandleMouseDown(StringHash eventType, VariantMap &eventData) {
 }
 
 void gs_playing::Shoot() {
-    URHO3D_LOGINFO("shoot");
-
     PlayShootingSound();
 
     Graphics* graphics = GetSubsystem<Graphics>();
@@ -431,4 +436,15 @@ void gs_playing::updateKilledZombiesUiElement() {
 
 Node *gs_playing::FindPlayerNode() {
     return globals::instance()->scene->GetChild("Player", true);
+}
+
+void gs_playing::HandlePlayerCollision(StringHash eventType, VariantMap &eventData) {}
+
+void gs_playing::playerWoundedSound(){
+    URHO3D_LOGINFO("wound sound");
+
+}
+void gs_playing::redFlashScreenEffect(){
+    URHO3D_LOGINFO("flash screen");
+
 }

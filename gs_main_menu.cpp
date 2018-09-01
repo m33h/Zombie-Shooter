@@ -64,29 +64,28 @@ gs_main_menu::gs_main_menu() : game_state()
     window_menu->SetColor(Color(.0,.15,.3,.5));
     window_menu->SetStyleAuto();
 
-// TODO: new game button
-//    {
-//        Button* button=new Button(globals::instance()->context);
-//        button->SetPosition(10,0);
-//        button->SetFixedSize(270,80);
-//        button->SetName("Button");
-//        button->SetStyleAuto();
-//        button->SetOpacity(0.75);
-//        {
-//            Text* t=new Text(globals::instance()->context);
-//            t->SetFont(globals::instance()->cache->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"),20);
-//            t->SetHorizontalAlignment(HA_CENTER);
-//            t->SetVerticalAlignment(VA_CENTER);
-//            t->SetName("Text");
-//            t->SetText("New game");
-//            button->AddChild(t);
-//        }
-//        window_menu->AddChild(button);
-//        SubscribeToEvent(button,E_RELEASED,URHO3D_HANDLER(gs_main_menu,HandlePlayPressed));
-//    }
     {
         Button* button=new Button(globals::instance()->context);
-        button->SetPosition(10,50);
+        button->SetPosition(10,0);
+        button->SetFixedSize(270,80);
+        button->SetName("Button");
+        button->SetStyleAuto();
+        button->SetOpacity(0.75);
+        {
+            Text* t=new Text(globals::instance()->context);
+            t->SetFont(globals::instance()->cache->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"),20);
+            t->SetHorizontalAlignment(HA_CENTER);
+            t->SetVerticalAlignment(VA_CENTER);
+            t->SetName("Text");
+            t->SetText("Start new game");
+            button->AddChild(t);
+        }
+        window_menu->AddChild(button);
+        SubscribeToEvent(button,E_RELEASED,URHO3D_HANDLER(gs_main_menu,HandleNewGamePressed));
+    }
+    {
+        Button* button=new Button(globals::instance()->context);
+        button->SetPosition(10,100);
         button->SetFixedSize(270,80);
         button->SetName("Button");
         button->SetStyleAuto();
@@ -106,7 +105,7 @@ gs_main_menu::gs_main_menu() : game_state()
 
     {
         Button* button=new Button(globals::instance()->context);
-        button->SetPosition(10,150);
+        button->SetPosition(10,200);
         button->SetFixedSize(270,80);
         button->SetName("Button");
         button->SetStyleAuto();
@@ -124,7 +123,6 @@ gs_main_menu::gs_main_menu() : game_state()
         SubscribeToEvent(button,E_RELEASED,URHO3D_HANDLER(gs_main_menu,HandleClosePressed));
     }
 
-
     GetSubsystem<Input>()->SetMouseVisible(true);
     GetSubsystem<Input>()->SetMouseGrabbed(false);
 
@@ -134,13 +132,19 @@ gs_main_menu::gs_main_menu() : game_state()
 
 void gs_main_menu::HandleClosePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData)
 {
-    URHO3D_LOGINFO("CLOSE");
     globals::instance()->engine->Exit();
 }
 
+void gs_main_menu::HandleNewGamePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData) {
+    globals::instance()->game_states.clear();
+    GetSubsystem<Input>()->SetMouseVisible(false);
+    GetSubsystem<Input>()->SetMouseGrabbed(true);
+    globals::instance()->game_states.emplace_back(new gs_playing);
+
+}
 void gs_main_menu::HandleResumePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData)
 {
-    URHO3D_LOGINFO("RESUME");
+    globals::instance()->toggleMenu = false;
     GetSubsystem<Input>()->SetMouseVisible(false);
     GetSubsystem<Input>()->SetMouseGrabbed(true);
     globals::instance()->game_states.resize(1);

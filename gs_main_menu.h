@@ -41,7 +41,7 @@ public:
 
     gs_main_menu();
     void update(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
-    void HandlePlayPressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+    void HandleNewGamePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleKeyDown(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleClosePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleResumePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);

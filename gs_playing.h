@@ -104,10 +104,10 @@ class gs_playing : public game_state
     void initPlayerHealthUiElement();
     void updateKilledZombiesUiElement();
     void updatePlayerHealthUiElement();
-
+    void playerWoundedSound();
+    void redFlashScreenEffect();
     void addPlayer();
     void addEnemies();
-
     void initNavigation();
     void subscribeToEvents();
     void UpdateEnemyDestination();
@@ -135,6 +135,7 @@ public:
     void HandleCrowdAgentReposition(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleZombieKilled(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandlePlayerWounded(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+    void HandlePlayerCollision(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
 
     virtual const Urho3D::String& GetTypeName() const {static Urho3D::String name("gs_playing");return name;}
 };
