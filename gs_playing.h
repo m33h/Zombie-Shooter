@@ -44,9 +44,6 @@
 #include <Urho3D/Audio/SoundListener.h>
 #include <Urho3D/Audio/Audio.h>
 #include <Urho3D/Scene/Node.h>
-
-#include <Urho3D/Core/CoreEvents.h>
-#include <Urho3D/Engine/Application.h>
 #include <Urho3D/Engine/Engine.h>
 #include <Urho3D/Input/Input.h>
 #include <Urho3D/Input/InputEvents.h>
@@ -57,6 +54,7 @@
 #include <Urho3D/UI/Text.h>
 #include <Urho3D/UI/Font.h>
 #include <Urho3D/UI/Button.h>
+#include <Urho3D/UI/Sprite.h>
 #include <Urho3D/UI/UIEvents.h>
 #include <Urho3D/Scene/Scene.h>
 #include <Urho3D/Scene/SceneEvents.h>
@@ -87,6 +85,7 @@
 #include <Urho3D/Navigation/OffMeshConnection.h>
 #include "Urho3D/IO/Log.h"
 
+
 #include "Player.h"
 #include "Zombie.h"
 
@@ -113,6 +112,7 @@ class gs_playing : public game_state
     void UpdateEnemyDestination();
     void Shoot();
     void PlayShootingSound();
+    void moveSprites();
     Node* FindPlayerNode();
 
 public:
@@ -120,6 +120,7 @@ public:
     double timer_playing=0;
     double goal_time=0;
     std::vector<Urho3D::Node*> flag_nodes;
+    Vector<SharedPtr<Sprite>> sprites_;
     static std::string last_level_filename;
     int framecount_ = 0;
     int time_ = 0;

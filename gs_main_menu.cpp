@@ -66,7 +66,7 @@ gs_main_menu::gs_main_menu() : game_state()
 
     {
         Button* button=new Button(globals::instance()->context);
-        button->SetPosition(10,0);
+        button->SetPosition(10,10);
         button->SetFixedSize(270,80);
         button->SetName("Button");
         button->SetStyleAuto();
@@ -85,7 +85,7 @@ gs_main_menu::gs_main_menu() : game_state()
     }
     {
         Button* button=new Button(globals::instance()->context);
-        button->SetPosition(10,100);
+        button->SetPosition(10,110);
         button->SetFixedSize(270,80);
         button->SetName("Button");
         button->SetStyleAuto();
@@ -105,7 +105,7 @@ gs_main_menu::gs_main_menu() : game_state()
 
     {
         Button* button=new Button(globals::instance()->context);
-        button->SetPosition(10,200);
+        button->SetPosition(10,210);
         button->SetFixedSize(270,80);
         button->SetName("Button");
         button->SetStyleAuto();

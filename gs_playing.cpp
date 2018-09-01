@@ -46,6 +46,7 @@
 #include "Urho3D/Core/Object.h"
 #include <Urho3D/Scene/Node.h>
 #include <Urho3D/UI/Sprite.h>
+#include <Urho3D/Core/Timer.h>
 
 #include "gs_playing.h"
 #include "gs_main_menu.h"
@@ -208,6 +209,8 @@ void gs_playing::HandleUpdate(StringHash eventType,VariantMap& eventData) {
         if (input->GetKeyDown('D'))
             playerNode->Translate(-1 * cameraDirVector.CrossProduct(Vector3(0,1,0)) * MOVE_SPEED * timeStep);
     }
+
+    moveSprites();
 }
 
 void gs_playing::HandlePostRenderUpdate(StringHash eventType, VariantMap & eventData){
@@ -447,4 +450,40 @@ void gs_playing::playerWoundedSound(){
 void gs_playing::redFlashScreenEffect(){
     URHO3D_LOGINFO("flash screen");
 
+    auto* cache = GetSubsystem<ResourceCache>();
+    auto* graphics = GetSubsystem<Graphics>();
+    auto* ui = GetSubsystem<UI>();
+
+    auto width = (float)graphics->GetWidth();
+    auto height = (float)graphics->GetHeight();
+
+    // TODO: change this to some blood texture
+    auto* decalTex = cache->GetResource<Texture2D>("assets/Textures/UrhoDecal.dds");
+
+    SharedPtr<Sprite> sprite(new Sprite(context_));
+    sprite->SetTexture(decalTex);
+    sprite->SetPosition(Vector2(Random() * width, Random() * height));
+    sprite->SetSize(IntVector2(64, 64));
+    sprite->SetHotSpot(IntVector2(64, 64));
+    sprite->SetRotation(Random() * 360.0f);
+    sprite->SetScale(Random(1.0f) + 0.5f);
+    sprite->SetColor(Color(1,0,0));
+    sprite->SetBlendMode(BLEND_ADD);
+    ui->GetRoot()->AddChild(sprite);
+    sprites_.Push(sprite);
+}
+
+void gs_playing::moveSprites() {
+    auto* graphics = GetSubsystem<Graphics>();
+    auto* ui = GetSubsystem<UI>();
+
+    for (unsigned i = 0; i < sprites_.Size(); ++i)
+    {
+        Sprite* sprite = sprites_[i];
+        Vector2 pos = sprite->GetPosition();
+        sprite->SetPosition(pos.x_, pos.y_+5);
+        if(pos.y_>graphics->GetHeight()){
+            ui->GetRoot()->RemoveChild(sprite);
+        }
+    }
 }

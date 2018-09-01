@@ -9,6 +9,7 @@
 #include <Urho3D/Scene/SceneEvents.h>
 #include "Player.h"
 #include "game_state.h"
+#include "gs_main_menu.h"
 #include <iostream>
 #include <stdio.h>
 #include <string>
@@ -42,6 +43,9 @@ void Player::HandleCollision(Urho3D::StringHash eventType, Urho3D::VariantMap& e
 
         if(healthPoints <= 0) {
             PlayUserDieSound();
+            //todo: move this to function and block 'Resume' option
+            globals::instance()->game_states.emplace_back(new gs_main_menu);
+            globals::instance()->toggleMenu = !globals::instance()->toggleMenu;
             SendEvent("PLAYER_DIED");
         }
     }
