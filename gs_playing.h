@@ -98,6 +98,7 @@ class gs_playing;
 class gs_playing : public game_state
 {
     void initUi();
+    void initSkybox();
     void initShootingAim();
     void initKilledZombieUiElement();
     void initPlayerHealthUiElement();

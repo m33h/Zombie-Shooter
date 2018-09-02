@@ -59,6 +59,7 @@ using namespace std;
 
 gs_playing::gs_playing() : game_state() {
     initUi();
+    initSkybox();
     addPlayer();
     initNavigation();
     subscribeToEvents();
@@ -497,4 +498,11 @@ void gs_playing::addEnemies(int zombiesCount) {
         modelNode->CreateComponent<AnimationController>();
         modelNode->CreateComponent<Zombie>();
     }
+}
+
+void gs_playing::initSkybox() {
+    Node* skyboxNode = globals::instance()->scene->CreateChild("Sky");
+    Skybox* skybox=skyboxNode->CreateComponent<Skybox>();
+    skybox->SetModel(globals::instance()->cache->GetResource<Model>("Models/Box.mdl"));
+    skybox->SetMaterial(globals::instance()->cache->GetResource<Material>("Materials/Skybox.xml"));
 }
