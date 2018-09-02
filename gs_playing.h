@@ -97,16 +97,16 @@ class gs_playing;
 
 class gs_playing : public game_state
 {
-
     void initUi();
     void initShootingAim();
     void initKilledZombieUiElement();
     void initPlayerHealthUiElement();
+    void initNextRoundTimeUiElement();
     void updateKilledZombiesUiElement();
     void updatePlayerHealthUiElement();
 
     void addPlayer();
-    void addEnemies();
+    void addEnemies(int zombiesCount);
 
     void initNavigation();
     void subscribeToEvents();
@@ -116,10 +116,8 @@ class gs_playing : public game_state
     Node* FindPlayerNode();
 
 public:
-    Urho3D::Text* window_text;
     double timer_playing=0;
     double goal_time=0;
-    std::vector<Urho3D::Node*> flag_nodes;
     static std::string last_level_filename;
     int framecount_ = 0;
     int time_ = 0;
@@ -135,6 +133,9 @@ public:
     void HandleCrowdAgentReposition(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleZombieKilled(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandlePlayerWounded(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+    void HandleNextRoundTime(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+    void HandleGameStart(StringHash eventType, VariantMap &eventData);
+    void HandleNextRound(StringHash eventType, VariantMap &eventData);
 
     virtual const Urho3D::String& GetTypeName() const {static Urho3D::String name("gs_playing");return name;}
 };
