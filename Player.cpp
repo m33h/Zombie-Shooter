@@ -19,6 +19,7 @@
 #include <Urho3D/Physics/PhysicsEvents.h>
 #include <Urho3D/Audio/Sound.h>
 #include <Urho3D/Audio/SoundSource.h>
+#include "PlayerEvents.h"
 
 using namespace Urho3D;
 
@@ -39,14 +40,14 @@ void Player::HandleCollision(Urho3D::StringHash eventType, Urho3D::VariantMap& e
 
     if (nullptr != node && node->HasTag("Enemy") && isPlayerAlive()) {
         healthPoints -= 2;
-        SendEvent("PLAYER_WOUNDED");
+        SendEvent(E_PLAYER_WOUNDED);
 
         if(healthPoints <= 0) {
             PlayUserDieSound();
             //todo: move this to function and block 'Resume' option
             globals::instance()->game_states.emplace_back(new gs_main_menu);
             globals::instance()->toggleMenu = !globals::instance()->toggleMenu;
-            SendEvent("PLAYER_DIED");
+            SendEvent(E_PLAYER_DIED);
         }
     }
 }

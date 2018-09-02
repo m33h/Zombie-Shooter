@@ -11,6 +11,9 @@
 #include <Urho3D/Audio/SoundSource.h>
 #include "Urho3D/IO/Log.h"
 #include "Zombie.h"
+#include "ZombieEvents.h"
+
+using namespace Urho3D;
 
 Zombie::Zombie(Context *context) : GameObject(context) {}
 Zombie::~Zombie() {}
@@ -24,7 +27,7 @@ void Zombie::GotHit() {
 
     if (hitCount <=0) {
         showZombieDies();
-        SendEvent("ZOMBIE_KILLED");
+        SendEvent(E_ZOMBIE_KILLED);
         node_->Remove();
     } else {
         showZombieGotHit();

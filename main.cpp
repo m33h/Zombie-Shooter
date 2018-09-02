@@ -53,18 +53,16 @@
 
 #include "gs_main_menu.h"
 #include "gs_playing.h"
+#include "Game.h"
+#include "GameEvents.h"
 
 using namespace Urho3D;
 
-
 class Main : public Application
 {
-    StringHash EVENT_ENEMY_HIT = StringHash("asdasdasd");
-
     public:
         int framecount_;
         float time_;
-        SharedPtr<Text> text_;
         SharedPtr<Scene> scene_;
         SharedPtr<Node> cameraNode_;
         SharedPtr<Node> playerNode;
@@ -73,6 +71,7 @@ class Main : public Application
     Main(Context *context) : Application(context), framecount_(0), time_(0), context(context) {
         Player::RegisterObject(context);
         Zombie::RegisterObject(context);
+        Game::RegisterObject(context);
         URHO3D_LOGINFO("init main");
     }
 
@@ -87,8 +86,6 @@ class Main : public Application
         ResourceCache *cache = GetSubsystem<ResourceCache>();
         GetSubsystem<UI>()->GetRoot()->SetDefaultStyle(cache->GetResource<XMLFile>("UI/DefaultStyle.xml"));
 
-        GetSubsystem<UI>()->GetRoot()->AddChild(text_);
-
         scene_ = new Scene(context_);
         XMLFile *sceneFile = cache->GetResource<XMLFile>("assets/scenes/mainScene.xml");
         scene_->LoadXML(sceneFile->GetRoot());
@@ -97,6 +94,7 @@ class Main : public Application
 
         playerNode = scene_->CreateChild("Player");
         playerNode->CreateComponent<Player>();
+
         cameraNode_ = playerNode->CreateChild("Camera");
         globals::instance()->cameraNode=cameraNode_;
         cameraNode_->SetPosition(Vector3(0,3,0));
@@ -111,14 +109,12 @@ class Main : public Application
         globals::instance()->context=context_;
         globals::instance()->ui_root=GetSubsystem<UI>()->GetRoot();
         globals::instance()->engine=engine_;
-        globals::instance()->game_states.emplace_back(new gs_main_menu);
+        globals::instance()->game_states.emplace_back(new gs_playing);
     }
 
     void subscribeToEvents() {
         SubscribeToEvent(E_KEYDOWN, URHO3D_HANDLER(Main, HandleKeyDown));
     }
-
-    void HandlePlayerCollision(StringHash eventType, VariantMap& eventData) {}
 
     virtual void Stop() {}
 
@@ -131,11 +127,7 @@ class Main : public Application
         }
     }
 
-    void HandleUpdate(StringHash eventType,VariantMap& eventData) {}
-    void HandleBeginFrame(StringHash eventType, VariantMap& eventData) {}
-    void HandleRenderUpdate(StringHash eventType, VariantMap & eventData) {}
-    void HandlePostUpdate(StringHash eventType,VariantMap& eventData) {}
-    void HandleEndFrame(StringHash eventType,VariantMap& eventData) {}
+    void HandleUpdate(StringHash eventType, VariantMap& eventData) {}
 };
 
 URHO3D_DEFINE_APPLICATION_MAIN(Main);

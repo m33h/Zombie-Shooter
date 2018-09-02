@@ -85,10 +85,9 @@
 #include <Urho3D/Navigation/OffMeshConnection.h>
 #include "Urho3D/IO/Log.h"
 
-
+#include "Game.h"
 #include "Player.h"
 #include "Zombie.h"
-
 #include "gs_main_menu.h"
 
 class player;
@@ -96,17 +95,19 @@ class gs_playing;
 
 class gs_playing : public game_state
 {
-
     void initUi();
+    void initSkybox();
     void initShootingAim();
     void initKilledZombieUiElement();
     void initPlayerHealthUiElement();
+    void initNextRoundTimeUiElement();
     void updateKilledZombiesUiElement();
     void updatePlayerHealthUiElement();
     void playerWoundedSound();
     void redFlashScreenEffect();
     void addPlayer();
-    void addEnemies();
+    void addEnemies(int zombiesCount);
+
     void initNavigation();
     void subscribeToEvents();
     void UpdateEnemyDestination();
@@ -115,8 +116,8 @@ class gs_playing : public game_state
     void moveSprites();
     Node* FindPlayerNode();
 
+    Game* game;
 public:
-    Urho3D::Text* window_text;
     double timer_playing=0;
     double goal_time=0;
     std::vector<Urho3D::Node*> flag_nodes;
@@ -136,9 +137,14 @@ public:
     void HandleCrowdAgentReposition(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleZombieKilled(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandlePlayerWounded(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+    void HandleNextRoundTime(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+    void HandleGameStart(StringHash eventType, VariantMap &eventData);
+    void HandleNextRound(StringHash eventType, VariantMap &eventData);
     void HandlePlayerCollision(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
 
     virtual const Urho3D::String& GetTypeName() const {static Urho3D::String name("gs_playing");return name;}
+
+    void initGameAndStart();
 };
 
 #endif // GS_PLAYING_H

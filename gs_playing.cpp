@@ -50,22 +50,22 @@
 
 #include "gs_playing.h"
 #include "gs_main_menu.h"
-
-#define NUM_MODELS 20
+#include "GameEvents.h"
+#include "ZombieEvents.h"
+#include "PlayerEvents.h"
 
 using namespace Urho3D;
 using namespace std;
 
 gs_playing::gs_playing() : game_state() {
-    SharedPtr<Scene> scene_;
-
     initUi();
+    initSkybox();
     addPlayer();
-    addEnemies();
     initNavigation();
     subscribeToEvents();
     updatePlayerHealthUiElement();
     updateKilledZombiesUiElement();
+    initGameAndStart();
 }
 
 void gs_playing::subscribeToEvents() {
@@ -76,9 +76,12 @@ void gs_playing::subscribeToEvents() {
     SubscribeToEvent(E_POSTRENDERUPDATE, URHO3D_HANDLER(gs_playing, HandlePostRenderUpdate));
     SubscribeToEvent(E_CROWD_AGENT_REPOSITION, URHO3D_HANDLER(gs_playing, HandleCrowdAgentReposition));
     SubscribeToEvent(E_MOUSEBUTTONDOWN, URHO3D_HANDLER(gs_playing, HandleMouseDown));
+    SubscribeToEvent(E_ZOMBIE_KILLED, URHO3D_HANDLER(gs_playing, HandleZombieKilled));
+    SubscribeToEvent(E_PLAYER_WOUNDED, URHO3D_HANDLER(gs_playing, HandlePlayerWounded));
+    SubscribeToEvent(E_GAME_NEXT_ROUND_TIME, URHO3D_HANDLER(gs_playing, HandleNextRoundTime));
+    SubscribeToEvent(E_GAME_START, URHO3D_HANDLER(gs_playing, HandleGameStart));
+    SubscribeToEvent(E_GAME_NEXT_ROUND, URHO3D_HANDLER(gs_playing, HandleNextRound));
     SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(gs_playing, HandlePlayerCollision));
-    SubscribeToEvent("ZOMBIE_KILLED", URHO3D_HANDLER(gs_playing, HandleZombieKilled));
-    SubscribeToEvent("PLAYER_WOUNDED", URHO3D_HANDLER(gs_playing, HandlePlayerWounded));
 }
 
 void gs_playing::HandleKeyDown(StringHash eventType, VariantMap &eventData) {
@@ -100,43 +103,6 @@ void gs_playing::HandlePlayerWounded(Urho3D::StringHash eventType, Urho3D::Varia
     updatePlayerHealthUiElement();
     playerWoundedSound();
     redFlashScreenEffect();
-}
-
-void gs_playing::addEnemies() {
-    const float MODEL_MOVE_SPEED = 2.0f;
-    const float MODEL_ROTATE_SPEED = 100.0f;
-    const BoundingBox bounds(Vector3(-20.0f, 0.0f, -20.0f), Vector3(20.0f, 0.0f, 20.0f));
-
-    Node *jacks = globals::instance()->scene->CreateChild("Enemies");
-
-    for (unsigned i = 0; i < NUM_MODELS; ++i) {
-        Node *modelNode = jacks->CreateChild("Jill");
-        modelNode->AddTag("Enemy");
-        modelNode->SetPosition(Vector3(Random(40.0f) - 20.0f, 0.0f, Random(40.0f) - 20.0f));
-        modelNode->SetRotation(Quaternion(0.0f, Random(180.0f), 0.0f));
-
-        RigidBody *body = modelNode->CreateComponent<RigidBody>();
-        body->SetCollisionLayer(1);
-        body->SetMass(0.01f);
-        body->SetRollingFriction(0.15f);
-        body->SetAngularFactor(Vector3::ZERO);
-
-        CollisionShape *shape = modelNode->CreateComponent<CollisionShape>();
-        shape->SetCapsule(0.7f, 1.8f, Vector3(0.0f, 0.9f, 0.0f));
-
-        AnimatedModel *modelObject = modelNode->CreateComponent<AnimatedModel>();
-        modelObject->SetModel(globals::instance()->cache->GetResource<Model>("Models/Mutant/Mutant.mdl"));
-        modelObject->SetMaterial(globals::instance()->cache->GetResource<Material>("Models/Mutant/Materials/mutant_M.xml"));
-        modelObject->SetCastShadows(true);
-
-        CrowdAgent* agent = modelNode->CreateComponent<CrowdAgent>();
-        agent->SetHeight(2.0f);
-        agent->SetMaxSpeed(3.0f);
-        agent->SetMaxAccel(5.0f);
-
-        modelNode->CreateComponent<AnimationController>();
-        modelNode->CreateComponent<Zombie>();
-    }
 }
 
 void gs_playing::addPlayer() {
@@ -219,7 +185,6 @@ void gs_playing::HandlePostRenderUpdate(StringHash eventType, VariantMap & event
     // Visualize agents' path and position to reach
     //globals::instance()->scene->GetComponent<CrowdManager>()->DrawDebugGeometry(true);
 }
-
 
 void gs_playing::HandleCrowdAgentReposition(StringHash eventType, VariantMap& eventData) {
     static const char *WALKING_ANI = "Models/Mutant/Mutant_Walk.ani";
@@ -331,18 +296,19 @@ void gs_playing::PlayShootingSound() {
     }
 }
 
+void gs_playing::initUi() {
+    initShootingAim();
+    initKilledZombieUiElement();
+    initPlayerHealthUiElement();
+    initNextRoundTimeUiElement();
+}
+
 void gs_playing::initShootingAim() {
     BorderImage *aimView = new BorderImage(globals::instance()->context);
     aimView->SetAlignment(HA_CENTER, VA_CENTER);
     aimView->SetSize(128, 128);
     aimView->SetTexture(globals::instance()->cache->GetResource<Texture2D>("assets/Textures/aim.png"));
     GetSubsystem<UI>()->GetRoot()->AddChild(aimView);
-}
-
-void gs_playing::initUi() {
-    initShootingAim();
-    initKilledZombieUiElement();
-    initPlayerHealthUiElement();
 }
 
 void gs_playing::initKilledZombieUiElement() {
@@ -408,6 +374,38 @@ void gs_playing::initPlayerHealthUiElement() {
     root->AddChild(playerHealthUiGroup);
 }
 
+void gs_playing::initNextRoundTimeUiElement() {
+    UIElement* root = GetSubsystem<UI>()->GetRoot();
+    ResourceCache* cache = GetSubsystem<ResourceCache>();
+
+    UIElement* nextRoundTimeUiGroup = new UIElement(context_);
+    nextRoundTimeUiGroup->SetLayout(LM_HORIZONTAL);
+    nextRoundTimeUiGroup->SetVerticalAlignment(VA_TOP);
+    nextRoundTimeUiGroup->SetHorizontalAlignment(HA_CENTER);
+    nextRoundTimeUiGroup->SetMinSize(200, 100);
+
+    Text* nextRoundTimeLabel = new Text(context_);
+    nextRoundTimeLabel->SetName("tvNextRoundTimeLabel");
+    nextRoundTimeLabel->SetColor(Color(0,1,0));
+    nextRoundTimeLabel->SetStyleAuto();
+    nextRoundTimeLabel->SetFont(cache->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"), 48);
+    nextRoundTimeLabel->SetHorizontalAlignment(HA_LEFT);
+    nextRoundTimeLabel->SetVerticalAlignment(VA_CENTER);
+    nextRoundTimeLabel->SetText("Next Wave in: ");
+
+    Text* nextRoundTime = new Text(context_);
+    nextRoundTime->SetName("tvNextRoundTime");
+    nextRoundTime->SetColor(Color(0,1,0));
+    nextRoundTime->SetStyleAuto();
+    nextRoundTime->SetFont(cache->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"), 48);
+    nextRoundTime->SetHorizontalAlignment(HA_RIGHT);
+    nextRoundTime->SetVerticalAlignment(VA_CENTER);
+
+    nextRoundTimeUiGroup->AddChild(nextRoundTimeLabel);
+    nextRoundTimeUiGroup->AddChild(nextRoundTime);
+    root->AddChild(nextRoundTimeUiGroup);
+}
+
 void gs_playing::updatePlayerHealthUiElement() {
     UIElement* root = GetSubsystem<UI>()->GetRoot();
 
@@ -439,6 +437,81 @@ void gs_playing::updateKilledZombiesUiElement() {
 
 Node *gs_playing::FindPlayerNode() {
     return globals::instance()->scene->GetChild("Player", true);
+}
+
+void gs_playing::HandleNextRoundTime(Urho3D::StringHash eventType, Urho3D::VariantMap &eventData) {
+    int nextRoundTime = eventData[Urho3D::GameNextRoundTime::P_NEXT_ROUND_TIME].GetInt();
+
+    UIElement* root = GetSubsystem<UI>()->GetRoot();
+    Text* tvNextRoundTime = dynamic_cast<Text *>(root->GetChild("tvNextRoundTime", true));
+    tvNextRoundTime->SetText(String(nextRoundTime));
+}
+
+void gs_playing::HandleGameStart(StringHash eventType, VariantMap& eventData) {
+    URHO3D_LOGINFO("HandleGameStart");
+    int zombiesCount = eventData[Urho3D::GameStart::P_ZOMBIES_IN_ROUND].GetInt();
+    addEnemies(zombiesCount);
+}
+
+void gs_playing::HandleNextRound(StringHash eventType, VariantMap& eventData) {
+    int zombiesCount = eventData[Urho3D::GameNextRound::P_ZOMBIES_IN_ROUND].GetInt();
+    addEnemies(zombiesCount);
+}
+
+void gs_playing::addEnemies(int zombiesCount) {
+    const float MODEL_MOVE_SPEED = 2.0f;
+    const float MODEL_ROTATE_SPEED = 100.0f;
+    const BoundingBox bounds(Vector3(-20.0f, 0.0f, -20.0f), Vector3(20.0f, 0.0f, 20.0f));
+
+    Node *zombiesGroupNode;
+
+    if (nullptr == (zombiesGroupNode = globals::instance()->scene->GetChild("Enemies"))) {
+        zombiesGroupNode = globals::instance()->scene->CreateChild("Enemies");
+    }
+
+    const Vector3& playerPosition = playerNode->GetPosition();
+
+    for (unsigned i = 0; i < zombiesCount; ++i) {
+        Node *modelNode = zombiesGroupNode->CreateChild("Jill");
+        modelNode->AddTag("Enemy");
+
+        bool foundFreePlace = false;
+        float angle = Random(0.0f, 360.f);
+        Vector3 zombiePosition = Vector3(Sin(angle), 0, Cos(angle));
+        zombiePosition*=15;
+
+        modelNode->SetPosition(zombiePosition);
+        modelNode->SetRotation(Quaternion(0.0f, Random(360.0f), 0.0f));
+
+        RigidBody *body = modelNode->CreateComponent<RigidBody>();
+        body->SetCollisionLayer(1);
+        body->SetMass(0.1f);
+        body->SetRollingFriction(0.15f);
+        body->SetAngularFactor(Vector3::ZERO);
+
+        CollisionShape *shape = modelNode->CreateComponent<CollisionShape>();
+        shape->SetCapsule(0.7f, 1.8f, Vector3(0.0f, 0.9f, 0.0f));
+
+        AnimatedModel *modelObject = modelNode->CreateComponent<AnimatedModel>();
+        modelObject->SetModel(globals::instance()->cache->GetResource<Model>("Models/Mutant/Mutant.mdl"));
+        modelObject->SetMaterial(globals::instance()->cache->GetResource<Material>("Models/Mutant/Materials/mutant_M.xml"));
+        modelObject->SetCastShadows(true);
+
+        CrowdAgent* agent = modelNode->CreateComponent<CrowdAgent>();
+        agent->SetHeight(2.0f);
+        agent->SetMaxSpeed(3.0f);
+        agent->SetMaxAccel(5.0f);
+
+        modelNode->CreateComponent<AnimationController>();
+        modelNode->CreateComponent<Zombie>();
+    }
+}
+
+void gs_playing::initSkybox() {
+    Node* skyboxNode = globals::instance()->scene->CreateChild("Sky");
+    Skybox* skybox=skyboxNode->CreateComponent<Skybox>();
+    skybox->SetModel(globals::instance()->cache->GetResource<Model>("Models/Box.mdl"));
+    skybox->SetMaterial(globals::instance()->cache->GetResource<Material>("Materials/Skybox.xml"));
 }
 
 void gs_playing::HandlePlayerCollision(StringHash eventType, VariantMap &eventData) {}
@@ -486,4 +559,9 @@ void gs_playing::moveSprites() {
             ui->GetRoot()->RemoveChild(sprite);
         }
     }
+}
+
+void gs_playing::initGameAndStart() {
+    game = new Game(globals::instance()->context);
+    game->Start();
 }
