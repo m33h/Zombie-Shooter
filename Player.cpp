@@ -23,7 +23,7 @@
 
 using namespace Urho3D;
 
-Player::Player(Context *context) : GameObject(context), healthPoints(100) {
+Player::Player(Context *context) : GameObject(context), context_(context), healthPoints(100) {
 }
 
 Player::~Player() {}
@@ -44,8 +44,7 @@ void Player::HandleCollision(Urho3D::StringHash eventType, Urho3D::VariantMap& e
 
         if(healthPoints <= 0) {
             PlayUserDieSound();
-            //todo: move this to function and block 'Resume' option
-            globals::instance()->game_states.emplace_back(new gs_main_menu);
+            globals::instance()->game_states.emplace_back(new gs_main_menu(globals::instance()->scene, context_, globals::instance()->cache, globals::instance()->cameraNode, globals::instance()->playerNode, GAME_START));
             globals::instance()->toggleMenu = !globals::instance()->toggleMenu;
             SendEvent(E_PLAYER_DIED);
         }

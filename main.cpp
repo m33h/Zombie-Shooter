@@ -67,6 +67,7 @@ class Main : public Application
         SharedPtr<Node> cameraNode_;
         SharedPtr<Node> playerNode;
         Context* context;
+        ResourceCache *cache_;
 
     Main(Context *context) : Application(context), framecount_(0), time_(0), context(context) {
         Player::RegisterObject(context);
@@ -84,6 +85,7 @@ class Main : public Application
 
     virtual void Start() {
         ResourceCache *cache = GetSubsystem<ResourceCache>();
+        cache_ = cache;
         GetSubsystem<UI>()->GetRoot()->SetDefaultStyle(cache->GetResource<XMLFile>("UI/DefaultStyle.xml"));
 
         scene_ = new Scene(context_);
@@ -109,7 +111,7 @@ class Main : public Application
         globals::instance()->context=context_;
         globals::instance()->ui_root=GetSubsystem<UI>()->GetRoot();
         globals::instance()->engine=engine_;
-        globals::instance()->game_states.emplace_back(new gs_playing);
+        globals::instance()->game_states.emplace_back(new gs_main_menu(scene_, context, cache_, cameraNode_, playerNode, GAME_START));
     }
 
     void subscribeToEvents() {
@@ -122,7 +124,7 @@ class Main : public Application
         using namespace KeyDown;
         int key = eventData[P_KEY].GetInt();
         if (key == KEY_ESCAPE) {
-            globals::instance()->game_states.emplace_back(new gs_main_menu);
+            globals::instance()->game_states.emplace_back(new gs_main_menu(scene_, context, cache_, cameraNode_, playerNode, GAME_RESTART));
             globals::instance()->toggleMenu = !globals::instance()->toggleMenu;
         }
     }

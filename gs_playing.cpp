@@ -57,7 +57,14 @@
 using namespace Urho3D;
 using namespace std;
 
-gs_playing::gs_playing() : game_state() {
+gs_playing::gs_playing(Scene* scene, Context* context, ResourceCache* cache, Node* cameraNode, Node* playerNode) :
+        scene_(scene),
+        context_(context),
+        cache_(cache),
+        cameraNode_(cameraNode),
+        playerNode_(playerNode),
+        game_state(context)
+{
     initUi();
     initSkybox();
     addPlayer();
@@ -90,7 +97,7 @@ void gs_playing::HandleKeyDown(StringHash eventType, VariantMap &eventData) {
     if (key == KEY_ESCAPE) {
         GetSubsystem<Input>()->SetMouseVisible(!GetSubsystem<Input>()->IsMouseVisible());
         globals::instance()->toggleMenu = true;
-        globals::instance()->game_states.emplace_back(new gs_main_menu);
+        globals::instance()->game_states.emplace_back(new gs_main_menu(scene_, context_, cache_, cameraNode_, playerNode_, GAME_RESTART));
     }
 }
 
@@ -106,24 +113,15 @@ void gs_playing::HandlePlayerWounded(Urho3D::StringHash eventType, Urho3D::Varia
 }
 
 void gs_playing::addPlayer() {
-    playerNode = globals::instance()->playerNode;
+    playerNode = playerNode_;
     playerNode->SetPosition(Vector3(0,0,0));
-    cameraNode_ = globals::instance()->cameraNode;
-    globals::instance()->cameraNode=cameraNode_;
     cameraNode_->SetPosition(Vector3(0,3,0));
-    Camera *camera = globals::instance()->camera;
+    Camera *camera = cameraNode_->GetComponent<Camera>();
     camera->SetFarClip(2000);
 
     Renderer *renderer = GetSubsystem<Renderer>();
-    SharedPtr<Viewport> viewport(
-            new Viewport(
-                    globals::instance()->context,
-                    globals::instance()->scene,
-                    globals::instance()->camera
-            )
-    );
+    SharedPtr<Viewport> viewport(new Viewport(context_, scene_, camera));
     renderer->SetViewport(0, viewport);
-    ResourceCache *cache = globals::instance()->cache;
 
     CollisionShape *shape = playerNode->CreateComponent<CollisionShape>();
     shape->SetCapsule(0.7f, 1.8f, Vector3(0.0f, 0.9f, 0.0f));
@@ -135,8 +133,8 @@ void gs_playing::addPlayer() {
     body->SetAngularFactor(Vector3::ZERO);
 
     AnimatedModel *modelObject = playerNode->CreateComponent<AnimatedModel>();
-    modelObject->SetModel(cache->GetResource<Model>("Models/Kachujin/Kachujin.mdl"));
-    modelObject->SetMaterial(cache->GetResource<Material>("Models/Kachujin/Materials/Kachujin.xml"));
+    modelObject->SetModel(cache_->GetResource<Model>("Models/Kachujin/Kachujin.mdl"));
+    modelObject->SetMaterial(cache_->GetResource<Material>("Models/Kachujin/Materials/Kachujin.xml"));
     modelObject->SetCastShadows(true);
 }
 
@@ -217,7 +215,7 @@ void gs_playing::HandleCrowdAgentReposition(StringHash eventType, VariantMap& ev
 }
 
 void gs_playing::initNavigation() {
-    CrowdManager* crowdManager = globals::instance()->scene->CreateComponent<CrowdManager>();
+    CrowdManager* crowdManager = scene_->CreateComponent<CrowdManager>();
     CrowdObstacleAvoidanceParams params = crowdManager->GetObstacleAvoidanceParams(0);
     params.velBias = 0.5f;
     params.adaptiveDivs = 7;
@@ -225,7 +223,7 @@ void gs_playing::initNavigation() {
     params.adaptiveDepth = 3;
     crowdManager->SetObstacleAvoidanceParams(0, params);
 
-    NavigationMesh *navMesh = globals::instance()->scene->GetComponent<NavigationMesh>();
+    NavigationMesh *navMesh = scene_->GetComponent<NavigationMesh>();
     navMesh->SetDrawNavAreas(true);
     navMesh->SetDrawOffMeshConnections(true);
     navMesh->SetAgentHeight(10.0f);
@@ -242,10 +240,10 @@ void gs_playing::UpdateEnemyDestination() {
         Vector3 hitPos = playerNode->GetPosition();
         hitPos.y_ = 0;
 
-        NavigationMesh *navMesh = globals::instance()->scene->GetComponent<NavigationMesh>();
+        NavigationMesh *navMesh = scene_->GetComponent<NavigationMesh>();
         Vector3 pathPos = navMesh->FindNearestPoint(hitPos, Vector3(1.0f, 1.0f, 1.0f));
-        Node* jackGroup = globals::instance()->scene->GetChild("Jacks");
-        globals::instance()->scene->GetComponent<CrowdManager>()->SetCrowdTarget(pathPos, jackGroup);
+        Node* jackGroup = scene_->GetChild("Jacks");
+        scene_->GetComponent<CrowdManager>()->SetCrowdTarget(pathPos, jackGroup);
     }
 }
 
@@ -262,12 +260,12 @@ void gs_playing::Shoot() {
     PlayShootingSound();
 
     Graphics* graphics = GetSubsystem<Graphics>();
-    Camera* camera = globals::instance()->cameraNode->GetComponent<Camera>();
+    Camera* camera = cameraNode_->GetComponent<Camera>();
     Ray cameraRay = camera->GetScreenRay((float) graphics->GetWidth()/2/graphics->GetWidth(), (float)graphics->GetHeight()/2/graphics->GetHeight());
 
     PODVector<RayQueryResult> results;
     RayOctreeQuery query(results, cameraRay, RAY_TRIANGLE, M_INFINITY, DRAWABLE_GEOMETRY);
-    globals::instance()->scene->GetComponent<Octree>()->Raycast(query);
+    scene_->GetComponent<Octree>()->Raycast(query);
 
     if (results.Size())
     {
@@ -285,11 +283,11 @@ void gs_playing::Shoot() {
 void gs_playing::PlayShootingSound() {
     const String& soundResourceName = "assets/Music/shoot.wav";
 
-    Sound* sound = globals::instance()->cache->GetResource<Sound>(soundResourceName);
+    Sound* sound = cache_->GetResource<Sound>(soundResourceName);
 
     if (sound)
     {
-        SoundSource* soundSource = globals::instance()->scene->CreateComponent<SoundSource>();
+        SoundSource* soundSource = scene_->CreateComponent<SoundSource>();
         soundSource->SetAutoRemoveMode(REMOVE_COMPONENT);
         soundSource->Play(sound);
         soundSource->SetGain(0.75f);
@@ -304,10 +302,10 @@ void gs_playing::initUi() {
 }
 
 void gs_playing::initShootingAim() {
-    BorderImage *aimView = new BorderImage(globals::instance()->context);
+    BorderImage *aimView = new BorderImage(context_);
     aimView->SetAlignment(HA_CENTER, VA_CENTER);
     aimView->SetSize(128, 128);
-    aimView->SetTexture(globals::instance()->cache->GetResource<Texture2D>("assets/Textures/aim.png"));
+    aimView->SetTexture(cache_->GetResource<Texture2D>("assets/Textures/aim.png"));
     GetSubsystem<UI>()->GetRoot()->AddChild(aimView);
 }
 
@@ -436,7 +434,7 @@ void gs_playing::updateKilledZombiesUiElement() {
 }
 
 Node *gs_playing::FindPlayerNode() {
-    return globals::instance()->scene->GetChild("Player", true);
+    return scene_->GetChild("Player", true);
 }
 
 void gs_playing::HandleNextRoundTime(Urho3D::StringHash eventType, Urho3D::VariantMap &eventData) {
@@ -517,12 +515,9 @@ void gs_playing::initSkybox() {
 void gs_playing::HandlePlayerCollision(StringHash eventType, VariantMap &eventData) {}
 
 void gs_playing::playerWoundedSound(){
-    URHO3D_LOGINFO("wound sound");
 
 }
 void gs_playing::redFlashScreenEffect(){
-    URHO3D_LOGINFO("flash screen");
-
     auto* cache = GetSubsystem<ResourceCache>();
     auto* graphics = GetSubsystem<Graphics>();
     auto* ui = GetSubsystem<UI>();

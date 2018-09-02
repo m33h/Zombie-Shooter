@@ -118,18 +118,12 @@ class gs_playing : public game_state
 
     Game* game;
 public:
-    double timer_playing=0;
-    double goal_time=0;
-    std::vector<Urho3D::Node*> flag_nodes;
     Vector<SharedPtr<Sprite>> sprites_;
-    static std::string last_level_filename;
     int framecount_ = 0;
     int time_ = 0;
-
-    Urho3D::Node* cameraNode_;
     Urho3D::Node* playerNode;
-    gs_playing();
 
+    gs_playing(Scene* scene, Context* context, ResourceCache* cache, Node* cameraNode, Node* playerNode);
     void HandlePostRenderUpdate(Urho3D::StringHash eventType, Urho3D::VariantMap& eventData);
     void HandleUpdate(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleKeyDown(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
@@ -145,6 +139,12 @@ public:
     virtual const Urho3D::String& GetTypeName() const {static Urho3D::String name("gs_playing");return name;}
 
     void initGameAndStart();
+private:
+    Scene* scene_;
+    Context* context_;
+    ResourceCache* cache_;
+    Node* cameraNode_;
+    Node* playerNode_;
 };
 
 #endif // GS_PLAYING_H

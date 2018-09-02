@@ -1,6 +1,9 @@
 #ifndef GS_MAIN_MENU_H
 #define GS_MAIN_MENU_H
 
+#define GAME_START 0
+#define GAME_RESTART 1
+
 #include "game_state.h"
 
 #include <Urho3D/Graphics/Light.h>
@@ -30,25 +33,26 @@
 #include <Urho3D/Graphics/ParticleEffect.h>
 #include <Urho3D/Scene/Node.h>
 
+using namespace Urho3D;
+
 class gs_main_menu : public game_state
 {
-public:
-    Urho3D::Node* node_rotating_flag;
-    Urho3D::Window* window_menu;
-    Urho3D::ListView* lv_levels;
-    map_times highscores;
-
-
-    gs_main_menu();
-    void update(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
-    void HandleNewGamePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
-    void HandleKeyDown(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
-    void HandleClosePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
-    void HandleResumePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
-
-    virtual void Start();
-
-    virtual const Urho3D::String& GetTypeName() const override {static Urho3D::String name("gs_main_menu");return name;}   // this could be correct
+    public:
+        Urho3D::Window* window_menu;
+        gs_main_menu(Scene *scene, Context* context, ResourceCache* cache, Node* cameraNode, Node* playerNode, int state);
+        void update(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+        void HandleNewGamePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+        void HandleKeyDown(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+        void HandleClosePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+        void HandleResumePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+        virtual void Start();
+    private:
+        int state;
+        Scene* scene_;
+        Context* context_;
+        ResourceCache* cache_;
+        Node* playerNode_;
+        Node* cameraNode_;
 };
 
 #endif // GS_MAIN_MENU_H

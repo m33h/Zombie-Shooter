@@ -51,68 +51,80 @@
 using namespace Urho3D;
 using namespace std;
 
-gs_main_menu::gs_main_menu() : game_state()
+gs_main_menu::gs_main_menu(Scene *scene, Context* context, ResourceCache* cache, Node* cameraNode, Node* playerNode, int state) :
+        scene_(scene),
+        context_(context),
+        cache_(cache),
+        cameraNode_(cameraNode),
+        playerNode_(playerNode),
+        game_state(context),
+        state(state)
 {
-    window_menu=new Window(globals::instance()->context);
+    window_menu=new Window(context_);
     gui_elements.push_back(window_menu);
     globals::instance()->ui_root->AddChild(window_menu);
 
-    window_menu->SetSize(300,300);
+    window_menu->SetSize(300,200);
     window_menu->SetLayout(LM_FREE,0,IntRect(10,10,10,10));
     window_menu->SetAlignment(HA_CENTER,VA_CENTER);
     window_menu->SetName("Window");
     window_menu->SetColor(Color(.0,.15,.3,.5));
     window_menu->SetStyleAuto();
 
-    {
-        Button* button=new Button(globals::instance()->context);
-        button->SetPosition(10,10);
-        button->SetFixedSize(270,80);
-        button->SetName("Button");
-        button->SetStyleAuto();
-        button->SetOpacity(0.75);
+    if(state == GAME_START) {
         {
-            Text* t=new Text(globals::instance()->context);
-            t->SetFont(globals::instance()->cache->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"),20);
-            t->SetHorizontalAlignment(HA_CENTER);
-            t->SetVerticalAlignment(VA_CENTER);
-            t->SetName("Text");
-            t->SetText("Start new game");
-            button->AddChild(t);
+            Button* button=new Button(context_);
+            button->SetPosition(10,10);
+            button->SetFixedSize(270,80);
+            button->SetName("Button");
+            button->SetStyleAuto();
+            button->SetOpacity(0.75);
+            {
+                Text* t=new Text(context_);
+                t->SetFont(cache_->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"),20);
+                t->SetHorizontalAlignment(HA_CENTER);
+                t->SetVerticalAlignment(VA_CENTER);
+                t->SetName("Text");
+                t->SetText("Start new game");
+                button->AddChild(t);
+            }
+            window_menu->AddChild(button);
+            SubscribeToEvent(button,E_RELEASED,URHO3D_HANDLER(gs_main_menu,HandleNewGamePressed));
         }
-        window_menu->AddChild(button);
-        SubscribeToEvent(button,E_RELEASED,URHO3D_HANDLER(gs_main_menu,HandleNewGamePressed));
     }
+
+    if(state == GAME_RESTART) {
+        {
+            Button* button=new Button(context_);
+            button->SetPosition(10,10);
+            button->SetFixedSize(270,80);
+            button->SetName("Button");
+            button->SetStyleAuto();
+            button->SetOpacity(0.75);
+            {
+                Text* t=new Text(context_);
+                t->SetFont(cache_->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"),20);
+                t->SetHorizontalAlignment(HA_CENTER);
+                t->SetVerticalAlignment(VA_CENTER);
+                t->SetName("Text");
+                t->SetText("Resume");
+                button->AddChild(t);
+            }
+            window_menu->AddChild(button);
+            SubscribeToEvent(button,E_RELEASED,URHO3D_HANDLER(gs_main_menu,HandleResumePressed));
+        }
+    }
+
     {
-        Button* button=new Button(globals::instance()->context);
+        Button* button=new Button(context_);
         button->SetPosition(10,110);
         button->SetFixedSize(270,80);
         button->SetName("Button");
         button->SetStyleAuto();
         button->SetOpacity(0.75);
         {
-            Text* t=new Text(globals::instance()->context);
-            t->SetFont(globals::instance()->cache->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"),20);
-            t->SetHorizontalAlignment(HA_CENTER);
-            t->SetVerticalAlignment(VA_CENTER);
-            t->SetName("Text");
-            t->SetText("Resume");
-            button->AddChild(t);
-        }
-        window_menu->AddChild(button);
-        SubscribeToEvent(button,E_RELEASED,URHO3D_HANDLER(gs_main_menu,HandleResumePressed));
-    }
-
-    {
-        Button* button=new Button(globals::instance()->context);
-        button->SetPosition(10,210);
-        button->SetFixedSize(270,80);
-        button->SetName("Button");
-        button->SetStyleAuto();
-        button->SetOpacity(0.75);
-        {
-            Text* t=new Text(globals::instance()->context);
-            t->SetFont(globals::instance()->cache->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"),20);
+            Text* t=new Text(context_);
+            t->SetFont(cache_->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"),20);
             t->SetHorizontalAlignment(HA_CENTER);
             t->SetVerticalAlignment(VA_CENTER);
             t->SetName("Text");
@@ -139,7 +151,7 @@ void gs_main_menu::HandleNewGamePressed(Urho3D::StringHash eventType,Urho3D::Var
     globals::instance()->game_states.clear();
     GetSubsystem<Input>()->SetMouseVisible(false);
     GetSubsystem<Input>()->SetMouseGrabbed(true);
-    globals::instance()->game_states.emplace_back(new gs_playing);
+    globals::instance()->game_states.emplace_back(new gs_playing(scene_, context_, cache_, cameraNode_, playerNode_));
 
 }
 void gs_main_menu::HandleResumePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData)
