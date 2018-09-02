@@ -19,5 +19,4 @@ public:
         int GetHealthPoints() { return healthPoints; }
         void HandleUpdate(Urho3D::StringHash eventType, Urho3D::VariantMap& eventData);
         void HandleCollision(StringHash eventType, VariantMap& eventData);
-
 };
