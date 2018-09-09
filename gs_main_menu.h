@@ -3,6 +3,7 @@
 
 #define GAME_START 0
 #define GAME_RESTART 1
+#define GAME_FINISHED 2
 
 #include "game_state.h"
 
@@ -45,6 +46,7 @@ class gs_main_menu : public game_state
         void HandleKeyDown(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
         void HandleClosePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
         void HandleResumePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
+        void HandleTryAgainPressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
         virtual void Start();
     private:
         int state;

@@ -57,13 +57,14 @@
 using namespace Urho3D;
 using namespace std;
 
-gs_playing::gs_playing(Scene* scene, Context* context, ResourceCache* cache, Node* cameraNode, Node* playerNode) :
-        scene_(scene),
-        context_(context),
-        cache_(cache),
-        cameraNode_(cameraNode),
-        playerNode_(playerNode),
-        game_state(context)
+gs_playing::gs_playing(Scene* scene, Context* context, ResourceCache* cache, Node* cameraNode, Node* playerNode, int state) :
+    scene_(scene),
+    context_(context),
+    cache_(cache),
+    cameraNode_(cameraNode),
+    playerNode_(playerNode),
+    game_state(context),
+    state(state)
 {
     initUi();
     initSkybox();
@@ -73,11 +74,10 @@ gs_playing::gs_playing(Scene* scene, Context* context, ResourceCache* cache, Nod
     updatePlayerHealthUiElement();
     updateKilledZombiesUiElement();
     initGameAndStart();
+    URHO3D_LOGINFO("start");
 }
 
 void gs_playing::subscribeToEvents() {
-    URHO3D_LOGINFO("SUBSCRIBED gs_playing");
-
     SubscribeToEvent(E_KEYDOWN, URHO3D_HANDLER(gs_playing, HandleKeyDown));
     SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(gs_playing, HandleUpdate));
     SubscribeToEvent(E_POSTRENDERUPDATE, URHO3D_HANDLER(gs_playing, HandlePostRenderUpdate));
@@ -97,7 +97,7 @@ void gs_playing::HandleKeyDown(StringHash eventType, VariantMap &eventData) {
     if (key == KEY_ESCAPE) {
         GetSubsystem<Input>()->SetMouseVisible(!GetSubsystem<Input>()->IsMouseVisible());
         globals::instance()->toggleMenu = true;
-        globals::instance()->game_states.emplace_back(new gs_main_menu(scene_, context_, cache_, cameraNode_, playerNode_, GAME_RESTART));
+        globals::instance()->game_states.emplace_back(new gs_main_menu(scene_, context_, cache_, cameraNode_, playerNode_, state));
     }
 }
 
@@ -524,8 +524,6 @@ void gs_playing::redFlashScreenEffect(){
 
     auto width = (float)graphics->GetWidth();
     auto height = (float)graphics->GetHeight();
-
-    // TODO: change this to some blood texture
     auto* decalTex = cache->GetResource<Texture2D>("assets/Textures/UrhoDecal.dds");
 
     SharedPtr<Sprite> sprite(new Sprite(context_));

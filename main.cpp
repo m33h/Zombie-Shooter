@@ -95,7 +95,7 @@ class Main : public Application
         scene_->CreateComponent<DebugRenderer>();
 
         playerNode = scene_->CreateChild("Player");
-        playerNode->CreateComponent<Player>();
+        Player* player = playerNode->CreateComponent<Player>();
 
         cameraNode_ = playerNode->CreateChild("Camera");
         globals::instance()->cameraNode=cameraNode_;

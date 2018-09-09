@@ -70,6 +70,11 @@ gs_main_menu::gs_main_menu(Scene *scene, Context* context, ResourceCache* cache,
     window_menu->SetName("Window");
     window_menu->SetColor(Color(.0,.15,.3,.5));
     window_menu->SetStyleAuto();
+    GetSubsystem<Input>()->SetMouseGrabbed(false);
+    GetSubsystem<Input>()->SetMouseVisible(true);
+
+    SubscribeToEvent(E_UPDATE,URHO3D_HANDLER(gs_main_menu,update));
+    SubscribeToEvent(E_KEYDOWN,URHO3D_HANDLER(gs_main_menu,HandleKeyDown));
 
     if(state == GAME_START) {
         {
@@ -93,7 +98,7 @@ gs_main_menu::gs_main_menu(Scene *scene, Context* context, ResourceCache* cache,
         }
     }
 
-    if(state == GAME_RESTART) {
+    else if(state == GAME_RESTART) {
         {
             Button* button=new Button(context_);
             button->SetPosition(10,10);
@@ -112,6 +117,28 @@ gs_main_menu::gs_main_menu(Scene *scene, Context* context, ResourceCache* cache,
             }
             window_menu->AddChild(button);
             SubscribeToEvent(button,E_RELEASED,URHO3D_HANDLER(gs_main_menu,HandleResumePressed));
+        }
+    }
+
+    else if(state == GAME_FINISHED) {
+        {
+            Button* button=new Button(context_);
+            button->SetPosition(10,10);
+            button->SetFixedSize(270,80);
+            button->SetName("Button");
+            button->SetStyleAuto();
+            button->SetOpacity(0.75);
+            {
+                Text* t=new Text(context_);
+                t->SetFont(cache_->GetResource<Font>("assets/fonts/Anonymous Pro.ttf"),20);
+                t->SetHorizontalAlignment(HA_CENTER);
+                t->SetVerticalAlignment(VA_CENTER);
+                t->SetName("Text");
+                t->SetText("Try again");
+                button->AddChild(t);
+            }
+            window_menu->AddChild(button);
+            SubscribeToEvent(button,E_RELEASED,URHO3D_HANDLER(gs_main_menu,HandleTryAgainPressed));
         }
     }
 
@@ -134,12 +161,6 @@ gs_main_menu::gs_main_menu(Scene *scene, Context* context, ResourceCache* cache,
         window_menu->AddChild(button);
         SubscribeToEvent(button,E_RELEASED,URHO3D_HANDLER(gs_main_menu,HandleClosePressed));
     }
-
-    GetSubsystem<Input>()->SetMouseVisible(true);
-    GetSubsystem<Input>()->SetMouseGrabbed(false);
-
-    SubscribeToEvent(E_UPDATE,URHO3D_HANDLER(gs_main_menu,update));
-    SubscribeToEvent(E_KEYDOWN,URHO3D_HANDLER(gs_main_menu,HandleKeyDown));
 }
 
 void gs_main_menu::HandleClosePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData)
@@ -148,11 +169,10 @@ void gs_main_menu::HandleClosePressed(Urho3D::StringHash eventType,Urho3D::Varia
 }
 
 void gs_main_menu::HandleNewGamePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData) {
-    globals::instance()->game_states.clear();
     GetSubsystem<Input>()->SetMouseVisible(false);
     GetSubsystem<Input>()->SetMouseGrabbed(true);
-    globals::instance()->game_states.emplace_back(new gs_playing(scene_, context_, cache_, cameraNode_, playerNode_));
-
+    globals::instance()->game_states.clear();
+    globals::instance()->game_states.emplace_back(new gs_playing(scene_, context_, cache_, cameraNode_, playerNode_, state));
 }
 void gs_main_menu::HandleResumePressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData)
 {
@@ -160,6 +180,19 @@ void gs_main_menu::HandleResumePressed(Urho3D::StringHash eventType,Urho3D::Vari
     GetSubsystem<Input>()->SetMouseVisible(false);
     GetSubsystem<Input>()->SetMouseGrabbed(true);
     globals::instance()->game_states.resize(1);
+}
+void gs_main_menu::HandleTryAgainPressed(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData)
+{
+    Player* player = playerNode_->GetComponent<Player>();
+    player->ResetHealthPoints();
+    player->ResetZombieKilled();
+    player->ResetUi();
+    globals::instance()->toggleMenu = false;
+    GetSubsystem<Input>()->SetMouseVisible(false);
+    GetSubsystem<Input>()->SetMouseGrabbed(true);
+    globals::instance()->game_states.front()->reset();
+    globals::instance()->game_states.resize(1);
+
 }
 
 void gs_main_menu::update(StringHash eventType,VariantMap& eventData) {}

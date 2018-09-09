@@ -140,6 +140,15 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/Game.cpp">
+			<Option target="zombie-shooter"/>
+		</Unit>
+		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/Game.h">
+			<Option target="zombie-shooter"/>
+		</Unit>
+		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/GameEvents.h">
+			<Option target="zombie-shooter"/>
+		</Unit>
 		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/GameObject.cpp">
 			<Option target="zombie-shooter"/>
 		</Unit>
@@ -152,10 +161,16 @@
 		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/Player.h">
 			<Option target="zombie-shooter"/>
 		</Unit>
+		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/PlayerEvents.h">
+			<Option target="zombie-shooter"/>
+		</Unit>
 		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/Zombie.cpp">
 			<Option target="zombie-shooter"/>
 		</Unit>
 		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/Zombie.h">
+			<Option target="zombie-shooter"/>
+		</Unit>
+		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/ZombieEvents.h">
 			<Option target="zombie-shooter"/>
 		</Unit>
 		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/bin/CoreData">
@@ -180,9 +195,6 @@
 			<Option target="zombie-shooter"/>
 		</Unit>
 		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/main.cpp">
-			<Option target="zombie-shooter"/>
-		</Unit>
-		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/misc.h">
 			<Option target="zombie-shooter"/>
 		</Unit>
 		<Unit filename="/home/x1/Dokumenty/C++/zombie-shooter/CMakeLists.txt">

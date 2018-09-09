@@ -60,6 +60,13 @@ public:
     std::vector<Urho3D::Node*> nodes;
     std::vector<Urho3D::UIElement*> gui_elements;
     game_state(Urho3D::Context* context) : context_(context), Urho3D::Object(context) {}
+    void reset() {
+        if(globals::instance()->killedZombiesCount) {
+            globals::instance()->killedZombiesCount = 0;
+        }
+        Urho3D::Node* enemies = globals::instance()->scene->GetChild("Enemies");
+        globals::instance()->scene->RemoveChild(enemies);
+    }
 
     virtual ~game_state()
     {
@@ -74,7 +81,6 @@ public:
     URHO3D_OBJECT(game_state,Urho3D::Object)
 private:
     Urho3D::Context* context_;
-
 };
 
 #endif // GAME_STATE_H

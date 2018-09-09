@@ -123,7 +123,7 @@ public:
     int time_ = 0;
     Urho3D::Node* playerNode;
 
-    gs_playing(Scene* scene, Context* context, ResourceCache* cache, Node* cameraNode, Node* playerNode);
+    gs_playing(Scene* scene, Context* context, ResourceCache* cache, Node* cameraNode, Node* playerNode, int state);
     void HandlePostRenderUpdate(Urho3D::StringHash eventType, Urho3D::VariantMap& eventData);
     void HandleUpdate(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
     void HandleKeyDown(Urho3D::StringHash eventType,Urho3D::VariantMap& eventData);
@@ -140,6 +140,7 @@ public:
 
     void initGameAndStart();
 private:
+    int state;
     Scene* scene_;
     Context* context_;
     ResourceCache* cache_;

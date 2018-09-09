@@ -44,7 +44,7 @@ void Player::HandleCollision(Urho3D::StringHash eventType, Urho3D::VariantMap& e
 
         if(healthPoints <= 0) {
             PlayUserDieSound();
-            globals::instance()->game_states.emplace_back(new gs_main_menu(globals::instance()->scene, context_, globals::instance()->cache, globals::instance()->cameraNode, globals::instance()->playerNode, GAME_START));
+            globals::instance()->game_states.emplace_back(new gs_main_menu(globals::instance()->scene, context_, globals::instance()->cache, globals::instance()->cameraNode, globals::instance()->playerNode, GAME_FINISHED));
             globals::instance()->toggleMenu = !globals::instance()->toggleMenu;
             SendEvent(E_PLAYER_DIED);
         }
@@ -77,4 +77,40 @@ bool Player::isPlayerAlive() {
 void Player::Start() {
     LogicComponent::Start();
     SubscribeToEvents();
+}
+
+void Player::ResetHealthPoints() {
+    if(healthPoints == 0)
+        healthPoints = 100;
+}
+
+void Player::ResetZombieKilled() {
+    if(globals::instance()->killedZombiesCount)
+        globals::instance()->killedZombiesCount=0;
+}
+
+void Player::ResetUi() {
+    UIElement* root = GetSubsystem<UI>()->GetRoot();
+
+    Text* tvPlayerHealth = dynamic_cast<Text *>(root->GetChild("tvPlayerHealth", true));
+
+    Node* playerNode = globals::instance()->playerNode;
+
+    if(playerNode) {
+        int playerHpPercentage = playerNode->GetComponent<Player>()->GetHealthPoints();
+
+        if (playerHpPercentage < 30) {
+            tvPlayerHealth->SetColor(Color(1,0,0));
+        } else if (playerHpPercentage < 60) {
+            tvPlayerHealth->SetColor(Color(1,1,0));
+        } else {
+            tvPlayerHealth->SetColor(Color(0,1,0));
+        }
+
+        tvPlayerHealth->SetText(String(playerHpPercentage));
+    }
+
+    Text* tvKilledZombieCount = dynamic_cast<Text *>(root->GetChild("tvKilledZombieCount", true));
+    int killedZombiesCount = globals::instance()->killedZombiesCount;
+    tvKilledZombieCount->SetText(String(killedZombiesCount));
 }
