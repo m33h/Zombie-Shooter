@@ -26,7 +26,7 @@ void Game::Start() {
 
 void Game::NextRound() {
     ++currentRound;
-    currentRoundZombiesCount *= 1.1;
+    currentRoundZombiesCount *= 1.3;
     RestartTimer();
 
     VariantMap params;
@@ -48,3 +48,6 @@ void Game::HandleBeginFrame(StringHash eventType, VariantMap &eventData) {
     }
 }
 
+float Game::ZombieSpeed() {
+    return 7.0 + (float)currentRound;
+}

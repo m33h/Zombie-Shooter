@@ -202,7 +202,7 @@ void gs_playing::HandleCrowdAgentReposition(StringHash eventType, VariantMap& ev
             float speedRatio = speed / agent->GetMaxSpeed();
             // Face the direction of its velocity but moderate the turning speed based on the speed ratio and timeStep
             node->SetRotation(node->GetRotation().Slerp(Quaternion(Vector3::BACK, velocity),
-                                                        10.0f * timeStep * speedRatio));
+                                                        2 * game->ZombieSpeed() * timeStep * speedRatio));
             // Throttle the animation speed based on agent speed ratio (ratio = 1 is full throttle)
             animCtrl->SetSpeed(WALKING_ANI, speedRatio * 1.5f);
         } else
@@ -497,8 +497,8 @@ void gs_playing::addEnemies(int zombiesCount) {
 
         CrowdAgent* agent = modelNode->CreateComponent<CrowdAgent>();
         agent->SetHeight(2.0f);
-        agent->SetMaxSpeed(3.0f);
-        agent->SetMaxAccel(5.0f);
+        agent->SetMaxSpeed(game->ZombieSpeed());
+        agent->SetMaxAccel(5.0);
 
         modelNode->CreateComponent<AnimationController>();
         modelNode->CreateComponent<Zombie>();

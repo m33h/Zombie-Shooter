@@ -24,6 +24,7 @@ class Game : public Object {
     void RestartTimer();
     void NextRound();
     void HandleBeginFrame(StringHash eventType, VariantMap& eventData);
+    float ZombieSpeed();
 public:
     explicit Game(Context *context);
     virtual void Start();
