@@ -7,8 +7,8 @@
 	<attribute name="Elapsed Time" value="0" />
 	<attribute name="Next Replicated Node ID" value="3" />
 	<attribute name="Next Replicated Component ID" value="8" />
-	<attribute name="Next Local Node ID" value="16777245" />
-	<attribute name="Next Local Component ID" value="16777439" />
+	<attribute name="Next Local Node ID" value="16777247" />
+	<attribute name="Next Local Component ID" value="16777460" />
 	<attribute name="Variables" />
 	<attribute name="Variable Names" value="" />
 	<component type="Octree" id="1" />
@@ -99,6 +99,9 @@
 				<attribute name="Cast Shadows" value="true" />
 			</component>
 			<component type="CollisionShape" id="16777373" />
+			<component type="RigidBody" id="16777455">
+				<attribute name="Physics Position" value="-38.3473 6.6265 -38.3932" />
+			</component>
 		</node>
 		<node id="16777227">
 			<attribute name="Is Enabled" value="true" />
@@ -118,6 +121,9 @@
 				<attribute name="Cast Shadows" value="true" />
 			</component>
 			<component type="CollisionShape" id="16777372" />
+			<component type="RigidBody" id="16777456">
+				<attribute name="Physics Position" value="14.6189 8.1872 -38.23" />
+			</component>
 		</node>
 		<node id="16777225">
 			<attribute name="Is Enabled" value="true" />
@@ -137,6 +143,9 @@
 				<attribute name="Cast Shadows" value="true" />
 			</component>
 			<component type="CollisionShape" id="16777371" />
+			<component type="RigidBody" id="16777457">
+				<attribute name="Physics Position" value="33.3747 6.8215 35.3178" />
+			</component>
 		</node>
 		<node id="16777222">
 			<attribute name="Is Enabled" value="true" />
@@ -156,6 +165,9 @@
 				<attribute name="Cast Shadows" value="true" />
 			</component>
 			<component type="CollisionShape" id="16777375" />
+			<component type="RigidBody" id="16777458">
+				<attribute name="Physics Position" value="-25.5377 6.6265 37.7071" />
+			</component>
 		</node>
 		<node id="16777220">
 			<attribute name="Is Enabled" value="true" />
@@ -195,6 +207,9 @@
 				<attribute name="Can Be Occluded" value="false" />
 			</component>
 			<component type="CollisionShape" id="16777370" />
+			<component type="RigidBody" id="16777459">
+				<attribute name="Physics Position" value="23.3414 4.4221 -1.5431" />
+			</component>
 		</node>
 	</node>
 </scene>
